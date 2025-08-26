@@ -3,131 +3,294 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Stroboscopic Effect</title>
+  <title>✨ Magical Website - Under Construction ✨</title>
   <style>
-    html, body {
-      height: 100%;
+    @import url('https://fonts.googleapis.com/css2?family=Comfortaa:wght@300;400;700&display=swap');
+    
+    * {
       margin: 0;
       padding: 0;
-      overflow: hidden;
+      box-sizing: border-box;
     }
+    
+    html, body {
+      height: 100%;
+      overflow: hidden;
+      font-family: 'Comfortaa', cursive;
+    }
+    
     body {
-      width: 100vw;
-      height: 100vh;
+      background: linear-gradient(45deg, #ff6b6b, #4ecdc4, #45b7d1, #96ceb4, #ffecd2, #fcb69f);
+      background-size: 400% 400%;
+      animation: gradientShift 8s ease-in-out infinite;
       display: flex;
+      flex-direction: column;
       align-items: center;
       justify-content: center;
-      transition: background 0.05s;
+      min-height: 100vh;
+      position: relative;
     }
-    #stress-btn, #stop-btn {
+    
+    @keyframes gradientShift {
+      0% { background-position: 0% 50%; }
+      50% { background-position: 100% 50%; }
+      100% { background-position: 0% 50%; }
+    }
+    
+    .stars {
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      pointer-events: none;
+      z-index: 1;
+    }
+    
+    .star {
       position: absolute;
-      top: 20px;
-      left: 50%;
-      transform: translateX(-50%);
-      padding: 1em 2em;
-      font-size: 1.2em;
-      background: #fff;
-      border: 2px solid #333;
-      border-radius: 8px;
-      cursor: pointer;
-      z-index: 10;
-      box-shadow: 0 2px 8px rgba(0,0,0,0.2);
+      color: white;
+      font-size: 1.5rem;
+      animation: twinkle 2s infinite;
     }
-    #stop-btn {
-      display: none;
+    
+    @keyframes twinkle {
+      0%, 100% { opacity: 0.3; transform: scale(1); }
+      50% { opacity: 1; transform: scale(1.2); }
+    }
+    
+    .floating-emoji {
+      position: absolute;
+      font-size: 2rem;
+      animation: float 6s ease-in-out infinite;
+      z-index: 2;
+    }
+    
+    @keyframes float {
+      0%, 100% { transform: translateY(0px) rotate(0deg); }
+      33% { transform: translateY(-20px) rotate(5deg); }
+      66% { transform: translateY(-10px) rotate(-5deg); }
+    }
+    
+    .main-content {
+      text-align: center;
+      z-index: 3;
+      background: rgba(255, 255, 255, 0.15);
+      backdrop-filter: blur(10px);
+      border-radius: 30px;
+      padding: 3rem;
+      border: 2px solid rgba(255, 255, 255, 0.3);
+      box-shadow: 0 15px 35px rgba(0, 0, 0, 0.1);
+      max-width: 90%;
+      animation: breathe 4s ease-in-out infinite;
+    }
+    
+    @keyframes breathe {
+      0%, 100% { transform: scale(1); }
+      50% { transform: scale(1.02); }
+    }
+    
+    .main-title {
+      font-size: 3.5rem;
+      font-weight: 700;
+      color: #fff;
+      text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.3);
+      margin-bottom: 1rem;
+      animation: glow 3s ease-in-out infinite alternate;
+    }
+    
+    @keyframes glow {
+      from {
+        text-shadow: 0 0 10px #fff, 0 0 20px #fff, 0 0 30px #ff6b6b, 0 0 40px #ff6b6b;
+      }
+      to {
+        text-shadow: 0 0 5px #fff, 0 0 10px #fff, 0 0 15px #4ecdc4, 0 0 20px #4ecdc4;
+      }
+    }
+    
+    .subtitle {
+      font-size: 1.5rem;
+      color: #fff;
+      margin-bottom: 2rem;
+      font-weight: 300;
+      text-shadow: 1px 1px 2px rgba(0, 0, 0, 0.3);
+    }
+    
+    .construction-icons {
+      font-size: 4rem;
+      margin: 2rem 0;
+      animation: bounce 2s infinite;
+    }
+    
+    @keyframes bounce {
+      0%, 20%, 50%, 80%, 100% { transform: translateY(0); }
+      40% { transform: translateY(-10px); }
+      60% { transform: translateY(-5px); }
+    }
+    
+    .message {
+      font-size: 1.2rem;
+      color: #fff;
+      line-height: 1.6;
+      font-weight: 400;
+      text-shadow: 1px 1px 2px rgba(0, 0, 0, 0.3);
+    }
+    
+    .sparkles {
+      position: absolute;
+      width: 100%;
+      height: 100%;
+      pointer-events: none;
+      z-index: 1;
+    }
+    
+    .sparkle {
+      position: absolute;
+      color: #ffd700;
+      font-size: 1rem;
+      animation: sparkleFloat 4s infinite;
+    }
+    
+    @keyframes sparkleFloat {
+      0% {
+        opacity: 0;
+        transform: translateY(100vh) rotate(0deg);
+      }
+      10% {
+        opacity: 1;
+      }
+      90% {
+        opacity: 1;
+      }
+      100% {
+        opacity: 0;
+        transform: translateY(-100px) rotate(360deg);
+      }
+    }
+    
+    .magical-orb {
+      position: absolute;
+      width: 100px;
+      height: 100px;
+      border-radius: 50%;
+      background: radial-gradient(circle, rgba(255,255,255,0.8) 0%, rgba(255,255,255,0.2) 50%, transparent 70%);
+      animation: orbFloat 8s ease-in-out infinite;
+      z-index: 1;
+    }
+    
+    @keyframes orbFloat {
+      0%, 100% { transform: translate(0, 0); }
+      25% { transform: translate(50px, -30px); }
+      50% { transform: translate(-30px, -50px); }
+      75% { transform: translate(-50px, 20px); }
     }
   </style>
 </head>
 <body>
-  <button id="stress-btn">Start Stress Test</button>
-  <button id="stop-btn">Stop Stress Test</button>
+  <!-- Background Stars -->
+  <div class="stars" id="stars"></div>
+  
+  <!-- Floating Sparkles -->
+  <div class="sparkles" id="sparkles"></div>
+  
+  <!-- Magical Orbs -->
+  <div class="magical-orb" style="top: 10%; left: 10%;"></div>
+  <div class="magical-orb" style="top: 20%; right: 15%; animation-delay: -2s;"></div>
+  <div class="magical-orb" style="bottom: 15%; left: 20%; animation-delay: -4s;"></div>
+  <div class="magical-orb" style="bottom: 25%; right: 10%; animation-delay: -6s;"></div>
+  
+  <!-- Floating Emojis -->
+  <div class="floating-emoji" style="top: 15%; left: 5%; animation-delay: 0s;">🦄</div>
+  <div class="floating-emoji" style="top: 25%; right: 10%; animation-delay: -1s;">🌟</div>
+  <div class="floating-emoji" style="top: 60%; left: 8%; animation-delay: -2s;">🔮</div>
+  <div class="floating-emoji" style="bottom: 20%; right: 5%; animation-delay: -3s;">✨</div>
+  <div class="floating-emoji" style="bottom: 40%; left: 15%; animation-delay: -4s;">🌙</div>
+  <div class="floating-emoji" style="top: 40%; right: 20%; animation-delay: -5s;">🎭</div>
+  <div class="floating-emoji" style="top: 70%; left: 25%; animation-delay: -6s;">🎪</div>
+  <div class="floating-emoji" style="bottom: 60%; right: 25%; animation-delay: -7s;">🎨</div>
+  
+  <!-- Main Content -->
+  <div class="main-content">
+    <h1 class="main-title">✨ Under Construction ✨</h1>
+    <p class="subtitle">Something magical is brewing... 🪄</p>
+    
+    <div class="construction-icons">
+      🏗️ 🎪 🦄 🔮 🌟
+    </div>
+    
+    <div class="message">
+      <p>🌙 Welcome to my enchanted corner of the web! 🌙</p>
+      <br>
+      <p>I'm currently weaving together something truly magical for you ✨</p>
+      <br>
+      <p>Come back soon to witness the wonder! 🎭</p>
+      <br>
+      <p>🦋 In the meantime, let your imagination soar... 🦋</p>
+    </div>
+  </div>
+
   <script>
-    // Stroboscopic effect
-    const colors = ['#FF0000', '#00FF00', '#0000FF', '#FFFF00', '#00FFFF', '#FF00FF', '#FFFFFF', '#000000'];
-    let idx = 0;
-    let strobeInterval = setInterval(() => {
-      document.body.style.background = colors[idx % colors.length];
-      idx++;
-    }, 50); // 20 times per second
-
-    // Stress test logic
-    let stressActive = false;
-    let svgCount = 0;
-    let stressInterval, cpuInterval;
-    let workers = [];
-    const NUM_WORKERS = Math.max(2, navigator.hardwareConcurrency ? Math.floor(navigator.hardwareConcurrency / 2) : 4);
-
-    function createSVG() {
-      if (!stressActive || svgCount > 100000000000000) return;
-      const svg = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
-      svg.setAttribute('width', '100vw');
-      svg.setAttribute('height', '100vh');
-      svg.style.position = 'fixed';
-      svg.style.top = 0;
-      svg.style.left = 0;
-      svg.style.width = '100vw';
-      svg.style.height = '100vh';
-      svg.style.pointerEvents = 'none';
-      svg.style.zIndex = 100 + svgCount;
-      svg.style.backdropFilter = 'blur(20px)';
-      svg.style.webkitBackdropFilter = 'blur(20px)';
-      // Add a colored rect to the SVG
-      const rect = document.createElementNS('http://www.w3.org/2000/svg', 'rect');
-      rect.setAttribute('x', 0);
-      rect.setAttribute('y', 0);
-      rect.setAttribute('width', '100vw');
-      rect.setAttribute('height', '100vh');
-      rect.setAttribute('fill', `hsl(${svgCount * 15 % 360}, 80%, 60%)`);
-      svg.appendChild(rect);
-      document.body.appendChild(svg);
-      svgCount++;
-      requestAnimationFrame(createSVG);
-    }
-
-    function cpuStress() {
-      // Busy loop for CPU stress
-      let t = performance.now();
-      while (performance.now() - t < 30) {
-        Math.sqrt(Math.random() * 1e8);
-      }
-      if (stressActive) {
-        setTimeout(cpuStress, 0);
+    // Create animated stars
+    function createStars() {
+      const starsContainer = document.getElementById('stars');
+      const numberOfStars = 50;
+      
+      for (let i = 0; i < numberOfStars; i++) {
+        const star = document.createElement('div');
+        star.className = 'star';
+        star.innerHTML = '✦';
+        star.style.left = Math.random() * 100 + '%';
+        star.style.top = Math.random() * 100 + '%';
+        star.style.animationDelay = Math.random() * 2 + 's';
+        star.style.animationDuration = (Math.random() * 3 + 2) + 's';
+        starsContainer.appendChild(star);
       }
     }
-
-    document.getElementById('stress-btn').onclick = function() {
-      if (stressActive) return;
-      stressActive = true;
-      svgCount = 0;
-      document.getElementById('stress-btn').style.display = 'none';
-      document.getElementById('stop-btn').style.display = '';
-      createSVG();
-      cpuStress();
-      // Start Web Workers for multi-threaded CPU stress
-      for (let i = 0; i < NUM_WORKERS; i++) {
-        const worker = new Worker('stress-worker.js');
-        worker.postMessage('start');
-        workers.push(worker);
-      }
-    };
-
-    document.getElementById('stop-btn').onclick = function() {
-      stressActive = false;
-      document.getElementById('stress-btn').style.display = '';
-      document.getElementById('stop-btn').style.display = 'none';
-      // Remove all SVGs
-      document.querySelectorAll('svg').forEach(e => e.remove());
-      // Stop all workers
-      workers.forEach(w => w.postMessage('stop'));
-      workers = [];
-    };
-
-    window.addEventListener('beforeunload', function(e) {
-      if (stressActive) {
-        e.preventDefault();
-        e.returnValue = '';
-        return '';
-      }
+    
+    // Create floating sparkles
+    function createSparkles() {
+      const sparklesContainer = document.getElementById('sparkles');
+      
+      setInterval(() => {
+        const sparkle = document.createElement('div');
+        sparkle.className = 'sparkle';
+        sparkle.innerHTML = '✨';
+        sparkle.style.left = Math.random() * 100 + '%';
+        sparkle.style.animationDuration = (Math.random() * 3 + 4) + 's';
+        sparklesContainer.appendChild(sparkle);
+        
+        // Remove sparkle after animation
+        setTimeout(() => {
+          if (sparkle.parentNode) {
+            sparkle.parentNode.removeChild(sparkle);
+          }
+        }, 5000);
+      }, 800);
+    }
+    
+    // Initialize magical effects
+    createStars();
+    createSparkles();
+    
+    // Add some mouse interaction magic
+    document.addEventListener('mousemove', (e) => {
+      const cursor = document.createElement('div');
+      cursor.style.position = 'fixed';
+      cursor.style.left = e.clientX + 'px';
+      cursor.style.top = e.clientY + 'px';
+      cursor.style.fontSize = '1rem';
+      cursor.style.color = '#ffd700';
+      cursor.style.pointerEvents = 'none';
+      cursor.style.zIndex = '1000';
+      cursor.innerHTML = '✨';
+      cursor.style.animation = 'sparkleFloat 2s ease-out forwards';
+      document.body.appendChild(cursor);
+      
+      setTimeout(() => {
+        if (cursor.parentNode) {
+          cursor.parentNode.removeChild(cursor);
+        }
+      }, 2000);
     });
   </script>
 </body>
