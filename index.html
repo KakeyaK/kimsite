@@ -136,6 +136,74 @@
       text-shadow: 1px 1px 2px rgba(0, 0, 0, 0.3);
     }
     
+    .theme-toggle {
+      position: fixed;
+      top: 20px;
+      right: 20px;
+      background: rgba(255, 255, 255, 0.2);
+      backdrop-filter: blur(10px);
+      border: 2px solid rgba(255, 255, 255, 0.3);
+      border-radius: 50px;
+      padding: 12px 20px;
+      cursor: pointer;
+      transition: all 0.3s ease;
+      z-index: 1000;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      font-family: 'Comfortaa', cursive;
+      font-weight: 600;
+      color: #fff;
+      text-shadow: 1px 1px 2px rgba(0, 0, 0, 0.3);
+    }
+    
+    .theme-toggle:hover {
+      background: rgba(255, 255, 255, 0.3);
+      transform: scale(1.05);
+    }
+    
+    #toggle-icon {
+      font-size: 1.2rem;
+      transition: transform 0.3s ease;
+    }
+    
+    .theme-toggle:hover #toggle-icon {
+      transform: scale(1.2);
+    }
+    
+    /* Halloween Theme Styles */
+    body.halloween-theme {
+      background: linear-gradient(45deg, #2d1b69, #1a0e3d, #4a148c, #6a1b9a, #8e24aa, #ab47bc);
+      background-size: 400% 400%;
+    }
+    
+    .halloween-theme .main-title {
+      color: #ff6600;
+      text-shadow: 0 0 10px #ff6600, 0 0 20px #ff6600, 0 0 30px #cc5500, 0 0 40px #cc5500;
+    }
+    
+    .halloween-theme .subtitle {
+      color: #ff9900;
+    }
+    
+    .halloween-theme .construction-icons {
+      color: #ff6600;
+    }
+    
+    .halloween-theme .sparkle {
+      color: #ff6600;
+    }
+    
+    .halloween-theme .magical-orb {
+      background: radial-gradient(circle, rgba(255,102,0,0.8) 0%, rgba(255,102,0,0.2) 50%, transparent 70%);
+    }
+    
+    .halloween-theme .main-content {
+      background: rgba(50, 20, 80, 0.3);
+      border: 2px solid rgba(255, 102, 0, 0.3);
+      box-shadow: 0 15px 35px rgba(255, 102, 0, 0.2);
+    }
+    
     .sparkles {
       position: absolute;
       width: 100%;
@@ -199,33 +267,53 @@
   <div class="magical-orb" style="bottom: 15%; left: 20%; animation-delay: -4s;"></div>
   <div class="magical-orb" style="bottom: 25%; right: 10%; animation-delay: -6s;"></div>
   
-  <!-- Floating Emojis -->
-  <div class="floating-emoji" style="top: 15%; left: 5%; animation-delay: 0s;">🦄</div>
-  <div class="floating-emoji" style="top: 25%; right: 10%; animation-delay: -1s;">🌟</div>
-  <div class="floating-emoji" style="top: 60%; left: 8%; animation-delay: -2s;">🔮</div>
-  <div class="floating-emoji" style="bottom: 20%; right: 5%; animation-delay: -3s;">✨</div>
-  <div class="floating-emoji" style="bottom: 40%; left: 15%; animation-delay: -4s;">🌙</div>
-  <div class="floating-emoji" style="top: 40%; right: 20%; animation-delay: -5s;">🎭</div>
-  <div class="floating-emoji" style="top: 70%; left: 25%; animation-delay: -6s;">🎪</div>
-  <div class="floating-emoji" style="bottom: 60%; right: 25%; animation-delay: -7s;">🎨</div>
+  <!-- Floating Emojis - Magical Theme -->
+  <div class="floating-emojis magical-emojis">
+    <div class="floating-emoji" style="top: 15%; left: 5%; animation-delay: 0s;">🦄</div>
+    <div class="floating-emoji" style="top: 25%; right: 10%; animation-delay: -1s;">🌟</div>
+    <div class="floating-emoji" style="top: 60%; left: 8%; animation-delay: -2s;">🔮</div>
+    <div class="floating-emoji" style="bottom: 20%; right: 5%; animation-delay: -3s;">✨</div>
+    <div class="floating-emoji" style="bottom: 40%; left: 15%; animation-delay: -4s;">🌙</div>
+    <div class="floating-emoji" style="top: 40%; right: 20%; animation-delay: -5s;">🎭</div>
+    <div class="floating-emoji" style="top: 70%; left: 25%; animation-delay: -6s;">🎪</div>
+    <div class="floating-emoji" style="bottom: 60%; right: 25%; animation-delay: -7s;">🎨</div>
+  </div>
   
+  <!-- Floating Emojis - Halloween Theme -->
+  <div class="floating-emojis halloween-emojis" style="display: none;">
+    <div class="floating-emoji" style="top: 15%; left: 5%; animation-delay: 0s;">🎃</div>
+    <div class="floating-emoji" style="top: 25%; right: 10%; animation-delay: -1s;">👻</div>
+    <div class="floating-emoji" style="top: 60%; left: 8%; animation-delay: -2s;">🕷️</div>
+    <div class="floating-emoji" style="bottom: 20%; right: 5%; animation-delay: -3s;">🦇</div>
+    <div class="floating-emoji" style="bottom: 40%; left: 15%; animation-delay: -4s;">🕸️</div>
+    <div class="floating-emoji" style="top: 40%; right: 20%; animation-delay: -5s;">💀</div>
+    <div class="floating-emoji" style="top: 70%; left: 25%; animation-delay: -6s;">🧙‍♀️</div>
+    <div class="floating-emoji" style="bottom: 60%; right: 25%; animation-delay: -7s;">🌙</div>
+  </div>
+  
+  <!-- Theme Toggle Button -->
+  <button id="theme-toggle" class="theme-toggle">
+    <span id="toggle-icon">🎃</span>
+    <span id="toggle-text">Halloween Mode</span>
+  </button>
+
   <!-- Main Content -->
   <div class="main-content">
-    <h1 class="main-title">✨ Under Construction ✨</h1>
-    <p class="subtitle">Something magical is brewing... 🪄</p>
+    <h1 class="main-title" id="main-title">✨ Under Construction ✨</h1>
+    <p class="subtitle" id="subtitle">Something magical is brewing... 🪄</p>
     
-    <div class="construction-icons">
+    <div class="construction-icons" id="construction-icons">
       🏗️ 🎪 🦄 🔮 🌟
     </div>
     
-    <div class="message">
-      <p>🌙 Welcome to my enchanted corner of the web! 🌙</p>
+    <div class="message" id="message">
+      <p id="welcome-text">🌙 Welcome to my enchanted corner of the web! 🌙</p>
       <br>
-      <p>I'm currently weaving together something truly magical for you ✨</p>
+      <p id="brewing-text">I'm currently weaving together something truly magical for you ✨</p>
       <br>
-      <p>Come back soon to witness the wonder! 🎭</p>
+      <p id="comeback-text">Come back soon to witness the wonder! 🎭</p>
       <br>
-      <p>🦋 In the meantime, let your imagination soar... 🦋</p>
+      <p id="imagination-text">🦋 In the meantime, let your imagination soar... 🦋</p>
     </div>
   </div>
 
@@ -271,6 +359,75 @@
     // Initialize magical effects
     createStars();
     createSparkles();
+    
+    // Theme switching functionality
+    let isHalloweenTheme = false;
+    
+    const themeContent = {
+      magical: {
+        title: "✨ Under Construction ✨",
+        subtitle: "Something magical is brewing... 🪄",
+        icons: "🏗️ 🎪 🦄 🔮 🌟",
+        welcome: "🌙 Welcome to my enchanted corner of the web! 🌙",
+        brewing: "I'm currently weaving together something truly magical for you ✨",
+        comeback: "Come back soon to witness the wonder! 🎭",
+        imagination: "🦋 In the meantime, let your imagination soar... 🦋",
+        toggleIcon: "🎃",
+        toggleText: "Halloween Mode"
+      },
+      halloween: {
+        title: "🎃 Under Construction 🎃",
+        subtitle: "Something spooky is brewing... 🧙‍♀️",
+        icons: "🏗️ 🎃 👻 🦇 🕷️",
+        welcome: "👻 Welcome to my haunted corner of the web! 👻",
+        brewing: "I'm currently conjuring something wickedly awesome for you 🎃",
+        comeback: "Come back soon for a frightful surprise! 🦇",
+        imagination: "🕸️ In the meantime, let your nightmares run wild... 🕸️",
+        toggleIcon: "✨",
+        toggleText: "Magical Mode"
+      }
+    };
+    
+    function toggleTheme() {
+      isHalloweenTheme = !isHalloweenTheme;
+      const body = document.body;
+      const content = isHalloweenTheme ? themeContent.halloween : themeContent.magical;
+      
+      // Toggle body class
+      if (isHalloweenTheme) {
+        body.classList.add('halloween-theme');
+      } else {
+        body.classList.remove('halloween-theme');
+      }
+      
+      // Update content
+      document.getElementById('main-title').textContent = content.title;
+      document.getElementById('subtitle').textContent = content.subtitle;
+      document.getElementById('construction-icons').textContent = content.icons;
+      document.getElementById('welcome-text').textContent = content.welcome;
+      document.getElementById('brewing-text').textContent = content.brewing;
+      document.getElementById('comeback-text').textContent = content.comeback;
+      document.getElementById('imagination-text').textContent = content.imagination;
+      
+      // Update toggle button
+      document.getElementById('toggle-icon').textContent = content.toggleIcon;
+      document.getElementById('toggle-text').textContent = content.toggleText;
+      
+      // Toggle emoji sets
+      const magicalEmojis = document.querySelector('.magical-emojis');
+      const halloweenEmojis = document.querySelector('.halloween-emojis');
+      
+      if (isHalloweenTheme) {
+        magicalEmojis.style.display = 'none';
+        halloweenEmojis.style.display = 'block';
+      } else {
+        magicalEmojis.style.display = 'block';
+        halloweenEmojis.style.display = 'none';
+      }
+    }
+    
+    // Add event listener to toggle button
+    document.getElementById('theme-toggle').addEventListener('click', toggleTheme);
     
     // Add some mouse interaction magic
     document.addEventListener('mousemove', (e) => {
