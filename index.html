@@ -479,6 +479,111 @@
       box-shadow: 0 15px 35px rgba(220, 20, 60, 0.2);
     }
     
+    /* Easter Egg Warning Modal */
+    .warning-modal {
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      background: rgba(0, 0, 0, 0.8);
+      display: none;
+      justify-content: center;
+      align-items: center;
+      z-index: 10000;
+      font-family: 'Comfortaa', cursive;
+    }
+    
+    .warning-content {
+      background: rgba(255, 255, 255, 0.95);
+      border-radius: 20px;
+      padding: 2rem;
+      max-width: 500px;
+      text-align: center;
+      box-shadow: 0 20px 50px rgba(0, 0, 0, 0.3);
+      border: 3px solid #ff6b6b;
+    }
+    
+    .warning-title {
+      color: #dc143c;
+      font-size: 1.8rem;
+      font-weight: 700;
+      margin-bottom: 1rem;
+      text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.1);
+    }
+    
+    .warning-text {
+      color: #333;
+      font-size: 1.1rem;
+      line-height: 1.6;
+      margin-bottom: 1.5rem;
+    }
+    
+    .warning-buttons {
+      display: flex;
+      gap: 1rem;
+      justify-content: center;
+    }
+    
+    .warning-btn {
+      padding: 12px 24px;
+      border: none;
+      border-radius: 25px;
+      font-family: 'Comfortaa', cursive;
+      font-weight: 600;
+      font-size: 1rem;
+      cursor: pointer;
+      transition: all 0.3s ease;
+    }
+    
+    .warning-btn.accept {
+      background: linear-gradient(45deg, #ff6b6b, #4ecdc4);
+      color: white;
+      text-shadow: 1px 1px 2px rgba(0, 0, 0, 0.3);
+    }
+    
+    .warning-btn.accept:hover {
+      transform: scale(1.05);
+      box-shadow: 0 5px 15px rgba(0, 0, 0, 0.2);
+    }
+    
+    .warning-btn.decline {
+      background: #ddd;
+      color: #666;
+    }
+    
+    .warning-btn.decline:hover {
+      background: #ccc;
+    }
+    
+    /* Light Party Mode Styles */
+    .light-party-active {
+      animation: none !important;
+    }
+    
+    .light-party-stop {
+      position: fixed;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%);
+      background: rgba(255, 255, 255, 0.9);
+      border: 3px solid #ff6b6b;
+      border-radius: 15px;
+      padding: 1rem 2rem;
+      font-family: 'Comfortaa', cursive;
+      font-weight: 700;
+      font-size: 1.2rem;
+      color: #dc143c;
+      cursor: pointer;
+      z-index: 9999;
+      animation: pulse 1s infinite;
+    }
+    
+    @keyframes pulse {
+      0%, 100% { transform: translate(-50%, -50%) scale(1); }
+      50% { transform: translate(-50%, -50%) scale(1.1); }
+    }
+    
     .sparkles {
       position: absolute;
       width: 100%;
@@ -721,6 +826,23 @@
       <p id="comeback-text">Come back soon to witness the wonder! 🎭</p>
       <br>
       <p id="imagination-text">🦋 In the meantime, let your imagination soar... 🦋</p>
+    </div>
+  </div>
+
+  <!-- Easter Egg Warning Modal -->
+  <div id="warning-modal" class="warning-modal">
+    <div class="warning-content">
+      <h2 class="warning-title">⚠️ Epilepsy Warning ⚠️</h2>
+      <p class="warning-text">
+        You're about to experience a rapid light party with fast-changing colors and themes. 
+        This may trigger seizures in people with photosensitive epilepsy.
+        <br><br>
+        <strong>Do you want to continue?</strong>
+      </p>
+      <div class="warning-buttons">
+        <button id="warning-accept" class="warning-btn accept">Let's Party! 🎉</button>
+        <button id="warning-decline" class="warning-btn decline">No Thanks</button>
+      </div>
     </div>
   </div>
 
@@ -983,6 +1105,95 @@
           cursor.parentNode.removeChild(cursor);
         }
       }, 2000);
+    });
+
+    // Easter Egg: "amazing" keyword detection
+    let keyBuffer = '';
+    let lightPartyMode = false;
+    let lightPartyInterval = null;
+
+    function showWarningModal() {
+      document.getElementById('warning-modal').style.display = 'flex';
+    }
+
+    function hideWarningModal() {
+      document.getElementById('warning-modal').style.display = 'none';
+    }
+
+    function startLightParty() {
+      if (lightPartyMode) return;
+      
+      lightPartyMode = true;
+      hideWarningModal();
+      
+      // Create stop button
+      const stopButton = document.createElement('div');
+      stopButton.className = 'light-party-stop';
+      stopButton.innerHTML = 'STOP PARTY! 🛑';
+      stopButton.id = 'light-party-stop';
+      document.body.appendChild(stopButton);
+      
+      // Add click listener to stop button
+      stopButton.addEventListener('click', stopLightParty);
+      
+      // Start rapid theme switching
+      lightPartyInterval = setInterval(() => {
+        if (lightPartyMode) {
+          currentThemeIndex = Math.floor(Math.random() * themeNames.length);
+          applyTheme(themeNames[currentThemeIndex]);
+        }
+      }, 150); // Change theme every 150ms for a frenetic effect
+    }
+
+    function stopLightParty() {
+      if (!lightPartyMode) return;
+      
+      lightPartyMode = false;
+      
+      // Clear the interval
+      if (lightPartyInterval) {
+        clearInterval(lightPartyInterval);
+        lightPartyInterval = null;
+      }
+      
+      // Remove stop button
+      const stopButton = document.getElementById('light-party-stop');
+      if (stopButton) {
+        stopButton.remove();
+      }
+      
+      // Reset to a random theme
+      selectRandomTheme();
+    }
+
+    // Listen for keypress events
+    document.addEventListener('keypress', (e) => {
+      // Add the typed character to the buffer
+      keyBuffer += e.key.toLowerCase();
+      
+      // Keep only the last 10 characters to avoid memory issues
+      if (keyBuffer.length > 10) {
+        keyBuffer = keyBuffer.slice(-10);
+      }
+      
+      // Check if "amazing" was typed
+      if (keyBuffer.includes('amazing')) {
+        keyBuffer = ''; // Reset buffer
+        if (!lightPartyMode) {
+          showWarningModal();
+        }
+      }
+    });
+
+    // Warning modal event listeners
+    document.getElementById('warning-accept').addEventListener('click', startLightParty);
+    document.getElementById('warning-decline').addEventListener('click', hideWarningModal);
+
+    // ESC key to stop light party
+    document.addEventListener('keydown', (e) => {
+      if (e.key === 'Escape' && lightPartyMode) {
+        stopLightParty();
+      }
     });
   </script>
 </body>
