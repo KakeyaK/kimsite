@@ -138,7 +138,7 @@
     
     .theme-toggle {
       position: fixed;
-      top: 20px;
+      top: 80px;
       right: 20px;
       background: rgba(255, 255, 255, 0.2);
       backdrop-filter: blur(10px);
@@ -632,9 +632,59 @@
       50% { transform: translate(-30px, -50px); }
       75% { transform: translate(-50px, 20px); }
     }
+    
+    /* MAC0470 Banner */
+    .mac0470-banner {
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100%;
+      background: linear-gradient(90deg, #ff0055, #ffaa00, #ff0055);
+      background-size: 200% auto;
+      color: white;
+      text-align: center;
+      padding: 15px 20px;
+      font-family: 'Comfortaa', cursive;
+      font-size: 1.2rem;
+      font-weight: 700;
+      text-decoration: none;
+      z-index: 10000;
+      box-shadow: 0 5px 25px rgba(0,0,0,0.5);
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      gap: 15px;
+      animation: bannerGlow 2s linear infinite, slideDown 0.5s ease-out, gradientShift 4s linear infinite;
+      border-bottom: 3px solid rgba(255,255,255,0.3);
+      transition: padding 0.3s ease, font-size 0.3s ease;
+    }
+    
+    .mac0470-banner:hover {
+      padding: 20px;
+      font-size: 1.3rem;
+      text-shadow: 0 0 10px white;
+    }
+    
+    @keyframes bannerGlow {
+      0% { box-shadow: 0 5px 15px rgba(255,0,85,0.4); }
+      50% { box-shadow: 0 5px 30px rgba(255,170,0,0.8); }
+      100% { box-shadow: 0 5px 15px rgba(255,0,85,0.4); }
+    }
+    
+    @keyframes slideDown {
+      from { transform: translateY(-100%); }
+      to { transform: translateY(0); }
+    }
   </style>
 </head>
 <body>
+  <!-- MAC0470 Banner -->
+  <a href="blog.html" class="mac0470-banner" id="mac-banner">
+    <span class="banner-icon">🚨</span>
+    <span class="banner-text"><strong>ATTENTION:</strong> If you are Paulo Meirelles, or anyone looking for MAC0470 blog posts, click here!</span>
+    <span class="banner-icon">🚨</span>
+  </a>
+
   <!-- Background Stars -->
   <div class="stars" id="stars"></div>
   

@@ -1,0 +1,320 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>MAC0470 Blog Posts</title>
+  
+  <!-- Fonts -->
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;800&family=Fira+Code&display=swap" rel="stylesheet">
+  
+  <!-- Highlight.js for code formatting -->
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.8.0/styles/atom-one-dark.min.css">
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.8.0/highlight.min.js"></script>
+  
+  <!-- Marked.js for markdown parsing -->
+  <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+
+  <style>
+    :root {
+      --bg-color: #0f172a;
+      --surface-color: #1e293b;
+      --primary: #38bdf8;
+      --secondary: #818cf8;
+      --text-main: #f8fafc;
+      --text-muted: #94a3b8;
+    }
+    
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+    
+    body {
+      background-color: var(--bg-color);
+      color: var(--text-main);
+      font-family: 'Inter', sans-serif;
+      line-height: 1.6;
+      min-height: 100vh;
+      background-image: 
+        radial-gradient(at 40% 20%, hsla(220,100%,74%,0.15) 0px, transparent 50%),
+        radial-gradient(at 80% 0%, hsla(189,100%,56%,0.15) 0px, transparent 50%),
+        radial-gradient(at 0% 50%, hsla(333,100%,53%,0.15) 0px, transparent 50%);
+    }
+
+    nav {
+      padding: 1.5rem 2rem;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      background: rgba(30, 41, 59, 0.5);
+      backdrop-filter: blur(12px);
+      border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+      position: sticky;
+      top: 0;
+      z-index: 100;
+    }
+
+    .nav-brand {
+      font-weight: 800;
+      font-size: 1.5rem;
+      background: linear-gradient(to right, var(--primary), var(--secondary));
+      -webkit-background-clip: text;
+      background-clip: text;
+      -webkit-text-fill-color: transparent;
+      text-decoration: none;
+    }
+
+    .back-btn {
+      color: var(--text-main);
+      text-decoration: none;
+      padding: 0.5rem 1rem;
+      border-radius: 8px;
+      background: rgba(255, 255, 255, 0.1);
+      transition: all 0.3s ease;
+      font-weight: 600;
+    }
+
+    .back-btn:hover {
+      background: rgba(255, 255, 255, 0.2);
+      transform: translateY(-2px);
+    }
+
+    main {
+      max-width: 800px;
+      margin: 4rem auto;
+      padding: 0 2rem;
+    }
+
+    .header-section {
+      text-align: center;
+      margin-bottom: 4rem;
+      animation: fadeInDown 1s ease-out;
+    }
+
+    .title {
+      font-size: 3rem;
+      font-weight: 800;
+      margin-bottom: 1rem;
+      line-height: 1.2;
+    }
+
+    .subtitle {
+      color: var(--text-muted);
+      font-size: 1.25rem;
+    }
+
+    .post-card {
+      background: rgba(30, 41, 59, 0.7);
+      backdrop-filter: blur(16px);
+      border: 1px solid rgba(255, 255, 255, 0.1);
+      border-radius: 16px;
+      padding: 2.5rem;
+      margin-bottom: 3rem;
+      box-shadow: 0 20px 40px rgba(0, 0, 0, 0.2);
+      transition: transform 0.3s ease, box-shadow 0.3s ease;
+      animation: fadeInUp 0.8s ease-out backwards;
+    }
+
+    .post-card:hover {
+      transform: translateY(-5px);
+      box-shadow: 0 25px 50px rgba(0, 0, 0, 0.3);
+      border-color: rgba(255, 255, 255, 0.2);
+    }
+
+    /* Markdown Styles inside the post */
+    .markdown-content h1, 
+    .markdown-content h2, 
+    .markdown-content h3 {
+      margin-top: 2rem;
+      margin-bottom: 1rem;
+      color: var(--text-main);
+    }
+
+    .markdown-content h1 { font-size: 2.25rem; color: var(--primary); }
+    .markdown-content h2 { font-size: 1.75rem; color: var(--secondary); }
+    
+    .markdown-content p {
+      margin-bottom: 1.5rem;
+      font-size: 1.1rem;
+    }
+
+    .markdown-content a {
+      color: var(--primary);
+      text-decoration: none;
+      border-bottom: 1px solid transparent;
+      transition: border-color 0.2s;
+    }
+
+    .markdown-content a:hover {
+      border-color: var(--primary);
+    }
+
+    .markdown-content code {
+      font-family: 'Fira Code', monospace;
+      background: rgba(0, 0, 0, 0.3);
+      padding: 0.2em 0.4em;
+      border-radius: 6px;
+      font-size: 0.9em;
+      color: #e2e8f0;
+    }
+
+    .markdown-content pre {
+      background: #111827;
+      padding: 1.5rem;
+      border-radius: 12px;
+      overflow-x: auto;
+      margin: 1.5rem 0;
+      border: 1px solid rgba(255, 255, 255, 0.05);
+    }
+
+    .markdown-content pre code {
+      background: transparent;
+      padding: 0;
+      color: inherit;
+      font-size: 0.95rem;
+    }
+
+    .markdown-content blockquote {
+      border-left: 4px solid var(--primary);
+      padding-left: 1rem;
+      margin: 1.5rem 0;
+      font-style: italic;
+      color: var(--text-muted);
+      background: rgba(56, 189, 248, 0.05);
+      padding: 1rem;
+      border-radius: 0 8px 8px 0;
+    }
+
+    .markdown-content ul, 
+    .markdown-content ol {
+      margin-bottom: 1.5rem;
+      padding-left: 1.5rem;
+      font-size: 1.1rem;
+    }
+
+    .markdown-content li {
+      margin-bottom: 0.5rem;
+    }
+
+    .post-date {
+      font-size: 0.9rem;
+      color: var(--primary);
+      margin-bottom: 1.5rem;
+      display: inline-block;
+      text-transform: uppercase;
+      letter-spacing: 1px;
+      font-weight: 600;
+      background: rgba(56, 189, 248, 0.1);
+      padding: 0.25rem 0.75rem;
+      border-radius: 20px;
+    }
+
+    @keyframes fadeInDown {
+      from { opacity: 0; transform: translateY(-30px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+
+    @keyframes fadeInUp {
+      from { opacity: 0; transform: translateY(40px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+
+    /* Secret script textarea for authors to write */
+    .author-post-source {
+      display: none;
+    }
+  </style>
+</head>
+<body>
+
+  <nav>
+    <a href="index.html" class="nav-brand">Kim's Site</a>
+    <a href="index.html" class="back-btn">← Back to Home</a>
+  </nav>
+
+  <main>
+    <div class="header-section">
+      <h1 class="title">MAC0470 Journal</h1>
+      <p class="subtitle">Insights, assignments, and thoughts on software development and beyond.</p>
+    </div>
+
+    <!-- Container where parsed markdown posts will go -->
+    <div id="posts-container"></div>
+    
+  </main>
+
+  <!-- Author can add new posts here simply by creating new template tags -->
+  <template class="author-post-source" data-date="March 24, 2026">
+# Welcome to my MAC0470 Blog!
+
+Hello, Paulo Meirelles and everyone else! This is the first entry for the MAC0470 course.
+
+Here is an example of what we can do with **Markdown** and some `inline code`.
+
+```python
+def greet(name):
+    print(f"Hello, {name}!")
+    
+# We are ready for MAC0470
+greet("Paulo Meirelles")
+```
+
+> "Software is a great combination between artistry and engineering."
+
+### Future Topics:
+- Agile Methodologies
+- Open Source Contributions
+- Software Architecture
+
+Stay tuned for more updates!
+  </template>
+
+  <script>
+    // Configuration for marked to use highlight.js
+    marked.setOptions({
+      highlight: function(code, lang) {
+        if (lang && hljs.getLanguage(lang)) {
+          return hljs.highlight(code, { language: lang }).value;
+        }
+        return hljs.highlightAuto(code).value;
+      },
+      breaks: true
+    });
+
+    // Parse and render all template tags into posts
+    document.addEventListener("DOMContentLoaded", () => {
+      const container = document.getElementById('posts-container');
+      const templates = document.querySelectorAll('.author-post-source');
+      
+      let delay = 0;
+      
+      templates.forEach((template, index) => {
+        const rawMarkdown = template.innerHTML.trim();
+        const htmlContent = marked.parse(rawMarkdown);
+        const dateStr = template.getAttribute('data-date') || 'Unknown Date';
+        
+        const postCard = document.createElement('article');
+        postCard.className = 'post-card';
+        postCard.style.animationDelay = `${delay}s`;
+        
+        const dateElement = document.createElement('div');
+        dateElement.className = 'post-date';
+        dateElement.textContent = dateStr;
+        
+        const contentElement = document.createElement('div');
+        contentElement.className = 'markdown-content';
+        contentElement.innerHTML = htmlContent;
+        
+        postCard.appendChild(dateElement);
+        postCard.appendChild(contentElement);
+        
+        container.appendChild(postCard);
+        
+        delay += 0.2;
+      });
+    });
+  </script>
+</body>
+</html>
