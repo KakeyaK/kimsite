@@ -236,8 +236,7 @@
 
   <main>
     <div class="header-section">
-      <h1 class="title">MAC0470 Journal</h1>
-      <p class="subtitle">Insights, assignments, and thoughts on software development and beyond.</p>
+      <h1 class="title">MAC0470 Blog Posts</h1>
     </div>
 
     <!-- Container where parsed markdown posts will go -->
@@ -245,30 +244,272 @@
     
   </main>
 
-  <!-- Author can add new posts here simply by creating new template tags -->
-  <template class="author-post-source" data-date="March 24, 2026">
-# Welcome to my MAC0470 Blog!
 
-Hello, Paulo Meirelles and everyone else! This is the first entry for the MAC0470 course.
+  <template class="author-post-source" data-date="February 25, 2026">
+# Following tutorial 1: Setting up QEMU and Libvirt for Kernel Development
 
-Here is an example of what we can do with **Markdown** and some `inline code`.
+This tutorial covers setting up QEMU and libvirt to compile and test the Linux kernel inside a Virtual Machine. Although the official tutorial is comprehensive and easy to follow, I had to tweak some settings to get everything working smoothly on my Manjaro Linux laptop.
 
-```python
-def greet(name):
-    print(f"Hello, {name}!")
-    
-# We are ready for MAC0470
-greet("Paulo Meirelles")
+💡 Quick Update: When downloading the VM image, the URL provided in the original tutorial is no longer active (as of early March). The best approach is to go to the Debian Cloud Images repository and choose the appropriate .qcow2 image from a recent version.
+
+### Command Adjustments for Manjaro (and Arch-based distros)
+
+When trying to run the VM with virsh, I immediately hit a permission issue when the system tried to access the .qcow2 file. After doing some digging, I realized this happens because libvirt often defaults to the wrong user when running under sudo.
+
+The best solution I found was to simply not use sudo for these commands.
+
+Instead, the create_vm_virsh script should call virt-install in user mode. To do this, use the --connect qemu:///session flag, which ensures the VM runs with your standard user permissions.
+
+Additionally, to communicate with the VM, I used the following arguments:
+
+```bash
+--qemu-commandline="-netdev user,id=net0,hostfwd=tcp::2222-:22" \
+--qemu-commandline="-device virtio-net-device,netdev=net0"
 ```
 
-> "Software is a great combination between artistry and engineering."
+This forwards port 2222 on the host machine to port 22 inside the VM, enabling easy SSH communication.
 
-### Future Topics:
-- Agile Methodologies
-- Open Source Contributions
-- Software Architecture
+### Finalizing the SSH Setup
 
-Stay tuned for more updates!
+Upon first launching the VM via the QEMU console, I had to install the SSH server manually:
+
+```bash
+sudo apt update
+sudo apt install openssh-server
+```
+
+After modifying the VM's SSH config file (/etc/ssh/sshd_config) as recommended in the tutorial to allow root login, I was successfully able to connect to the machine from my host terminal:
+
+```bash
+ssh -p 2222 root@127.0.0.1
+```
+
+And send files back and forth using scp:
+
+```bash
+scp -P 2222 ~/teste.txt root@127.0.0.1:/root/foo
+```
+  </template>
+
+  <template class="author-post-source" data-date="March 04, 2026">
+# Following tutorial 2: Building a Custom Linux Kernel with kw
+
+It took me some time, but eventually, this tutorial clicked into place and I got a better understanding of how things were related.
+
+First things first: installing `kw` (Kernel Workflow). 
+
+During the installation, I had to make a small adjustment to the dependency tracker. In `kw/documentation/dependencies/arch.dependencies`, I updated the script to recognize `pipewire-pulse` as a valid dependency instead of `pulseaudio`, since Pipewire is the default on my Manjaro system.
+
+Once `kw` was installed, I needed to adjust the `kw remote` command to play nicely with the custom port forwarding network tweak I set up in the previous tutorial:
+
+```bash
+kw remote --add arm64 root@127.0.0.1:2222 --set-default
+```
+*(Note: I also had to run `sudo apt install rsync` inside the VM, as kw relies on it for fast file transfers).*
+
+### Booting the VM
+
+I spent some hours trying to get my newly compiled kernel to actually boot on my VM. Initially, it would just hang without sending any information to the console. I don’t quite get what happened, but I decided to redo the steps from this tutorial from scratch and eventually things started to work.  
+
+On this second run, things started to make more sense and I think I got a better understanding of the overall compilation architecture. The hardest part for me was connecting the dots between:
+- What the `.config` file does.
+- What is actually being compiled when you run `kw build`.
+- The difference between what gets compiled as a loadable `.ko` module vs. what gets baked directly into the main Kernel Image.
+  </template>
+
+  <template class="author-post-source" data-date="March 11, 2026">
+# Following tutorial 3: Introduction to Linux Kernel Modules
+
+In tutorial 3, things broke, and I spent quite a bit of time going back and forth to fix them.
+
+The first issue was a networking conflict. My previous adjustments to use port forwarding (`--netdev user,id=net0,hostfwd=tcp::2222-:22`) were clashing with the `--network user` argument. Because the VM was trying to initialize two different networking backends, I was losing SSH access seemingly at random. Once I removed the conflicting bridge network flag, the connection stabilized.
+
+With the network fixed, I moved on to creating and compiling a new kernel module. However, after running `kw build` and booting the machine, it hung completely.
+
+After some trial and error I discovered that when I ran `make -C "$IIO_TREE" menuconfig` (and potentially other kernel’s make commands), the kernel's build system defaulted to my host machine's architecture (x86) and silently overwrote my entire `.config` file. Because I was building for an ARM64 virtual machine, I needed to explicitly pass the architecture flags so make wouldn't break my config.
+
+To fix this, I started running the command with `ARCH` and `CROSS_COMPILE` flags, as the following: 
+
+```bash
+make -C "$IIO_TREE" ARCH=arm64 CROSS_COMPILE=aarch64-linux-gnu- menuconfig
+```
+
+### A Quick Fix for the Offline Mount Script
+
+One final observation: there is a small bug in the tutorial section where you use `guestmount` to inject modules into the VM while it is powered off. The unmount command references a variable that is never declared.
+
+Here is the corrected snippet:
+
+```bash
+mkdir -p "${VM_DIR}/arm64_rootfs"
+
+# Mount the VM rootfs to the given mount point
+sudo guestmount --rw --add "${VM_DIR}/arm64_img.qcow2" --mount /dev/sda1 "${VM_DIR}/arm64_rootfs" 
+
+# Install modules inside the VM
+sudo --preserve-env make -C "${IIO_TREE}" ARCH=arm64 CROSS_COMPILE=aarch64-linux-gnu- INSTALL_MOD_PATH="${VM_DIR}/arm64_rootfs" modules_install 
+
+# Unmount the VM using the correct path variable
+sudo guestunmount "${VM_DIR}/arm64_rootfs" 
+```
+
+### Conclusions
+
+After completing this tutorial and the exercises, the complete flow of building modules, sending them to the VM, and dynamically loading them into memory finally became clear. It is a very cool process once you get the hang of it!
+  </template>
+
+  <template class="author-post-source" data-date="March 18, 2026">
+# Following tutorial 4: Writing a Linux Character Device Driver
+
+Tutorial 4 was smooth. After the hurdles of the previous sections, writing the C code for a kernel module was nice. I was able to successfully create the final driver, complete with the exercise requirements to support multiple connected devices and multiple independent memory buffers.
+
+This is my final working code for a linux character device driver that dynamically allocates independent buffers based on the device's minor number:
+
+```c
+#define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
+
+#include <linux/init.h>
+#include <linux/module.h>
+#include <linux/kdev_t.h>  /* for MAJOR */
+#include <linux/cdev.h>    /* for cdev */
+#include <linux/fs.h>      /* for chrdev functions */
+#include <linux/slab.h>    /* for kmalloc */
+#include <linux/string.h>  /* for sprintf() */
+#include <linux/uaccess.h> /* copy_to_user() and copy_from_user() */
+
+#define S_BUFF_SIZE 4096
+#define MINOR_NUMS 3
+
+struct cdev *s_cdev;
+static dev_t dev_id;
+
+/* Array of pointers to hold a separate buffer for each minor device */
+static char *s_buf[MINOR_NUMS];
+
+static int simple_char_open(struct inode *inode, struct file *file)
+{
+    unsigned int minor_num = MINOR(inode->i_rdev);
+
+    /* Security check: Make sure the user isn't trying to open an unsupported device */
+    if (minor_num >= MINOR_NUMS) {
+        pr_err("Invalid minor number %u\n", minor_num);
+        return -ENODEV;
+    }
+
+    /* Allocate the buffer for this specific minor number if it doesn't exist yet */
+    if (!s_buf[minor_num]) {
+        s_buf[minor_num] = kmalloc(S_BUFF_SIZE, GFP_KERNEL);
+        if (!s_buf[minor_num])
+            return -ENOMEM;
+
+        /* Give it a custom starting message */
+        sprintf(s_buf[minor_num], "This is data from simple_char device %u.", minor_num);
+        pr_info("Allocated new buffer for minor %u\n", minor_num);
+    }
+
+    pr_info("Opened device with Major: %u, Minor: %u\n", MAJOR(inode->i_rdev), minor_num);
+    return 0;
+}
+
+static ssize_t simple_char_read(struct file *file, char __user *buffer,
+                size_t count, loff_t *ppos)
+{
+    unsigned int minor_num = MINOR(file->f_inode->i_rdev);
+    int n_bytes;
+
+    if (minor_num >= MINOR_NUMS || !s_buf[minor_num])
+        return -ENODEV;
+
+    pr_info("Reading %zu bytes from minor %u\n", count, minor_num);
+
+    n_bytes = count - copy_to_user(buffer, s_buf[minor_num] + *ppos, count);
+    *ppos += n_bytes;
+    
+    return n_bytes;
+}
+
+static ssize_t simple_char_write(struct file *file, const char __user *buffer,
+                 size_t count, loff_t *ppos)
+{
+    unsigned int minor_num = MINOR(file->f_inode->i_rdev);
+    int n_bytes;
+
+    if (minor_num >= MINOR_NUMS || !s_buf[minor_num])
+        return -ENODEV;
+
+    pr_info("Writing %zu bytes to minor %u\n", count, minor_num);
+
+    n_bytes = count - copy_from_user(s_buf[minor_num] + *ppos, buffer, count);
+    *ppos += n_bytes; /* Advance the file position after writing */
+    
+    return n_bytes;
+}
+
+static int simple_char_release(struct inode *inode, struct file *file)
+{
+    pr_info("Closed device\n");
+    return 0;
+}
+
+static const struct file_operations simple_char_fops = {
+    .owner = THIS_MODULE,
+    .open = simple_char_open,
+    .release = simple_char_release,
+    .read = simple_char_read,
+    .write = simple_char_write,
+};
+
+static int __init simple_char_init(void)
+{
+    int ret;
+
+    pr_info("Initializing module.\n");
+
+    /* Dynamically allocate character device numbers. */
+    ret = alloc_chrdev_region(&dev_id, 0, MINOR_NUMS, "simple_char");
+    if (ret < 0)
+        return ret;
+
+    /* Allocate and initialize the character device cdev structure */
+    s_cdev = cdev_alloc();
+    s_cdev->ops = &simple_char_fops;
+    s_cdev->owner = simple_char_fops.owner;
+
+    /* Adds a mapping for the device ID into the system. */
+    return cdev_add(s_cdev, dev_id, MINOR_NUMS);
+}
+
+static void __exit simple_char_exit(void)
+{
+    int i;
+
+    cdev_del(s_cdev);
+    unregister_chrdev_region(dev_id, MINOR_NUMS);
+
+    /* Free any buffers that were allocated during the driver's lifetime */
+    for (i = 0; i < MINOR_NUMS; i++) {
+        if (s_buf[i]) {
+            kfree(s_buf[i]);
+            pr_info("Freed buffer for minor %d\n", i);
+        }
+    }
+
+    pr_info("Exiting module.\n");
+}
+
+module_init(simple_char_init);
+module_exit(simple_char_exit);
+
+MODULE_AUTHOR("A Linux kernel student");
+MODULE_DESCRIPTION("A simple character device driver example.");
+MODULE_LICENSE("GPL");
+```
+  </template>
+
+  <template class="author-post-source" data-date="March 25, 2026">
+# Following tutorial 5, 6
+
+No problems following these two tutorials as well. It’s cool that they have tools to manage the sending of patches to the kernel. I had seen discussions on email lists before, but had no idea the workflow for suggesting changes was like this. 
   </template>
 
   <script>
