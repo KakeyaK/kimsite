@@ -1,0 +1,33 @@
+---
+type Props = {
+  slug?: string;
+  baseLabel: string;
+  baseHref: string;
+  labelByPath?: Record<string, string>;
+};
+
+const { slug = "", baseLabel, baseHref, labelByPath = {} } = Astro.props;
+const parts = slug ? slug.split("/") : [];
+---
+
+<nav class="text-sm text-gray-600 dark:text-gray-300">
+  <a href={baseHref} class="hover:underline">{baseLabel}</a>
+  {parts.length > 0 && <span class="mx-2">/</span>}
+  {
+    parts.map((part, i) => {
+      const path = parts.slice(0, i + 1).join("/");
+      const isLast = i === parts.length - 1;
+      const label = labelByPath[path] ?? part;
+      return (
+        <span>
+          {!isLast && (
+            <a href={`${baseHref}/${path}`} class="hover:underline">
+              {label}
+            </a>
+          )}
+          {i < parts.length - 2 ? <span class="mx-2">/</span> : null}
+        </span>
+      );
+    })
+  }
+</nav>

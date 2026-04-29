@@ -5,15 +5,16 @@ import PageLayout from "@layouts/PageLayout.astro";
 import ArrowCard from "@components/ArrowCard.astro";
 import Link from "@components/Link.astro";
 import { dateRange } from "@lib/utils";
+import { isBlogPostEntry } from "@lib/blogEntries";
 import { SITE, HOME, SOCIALS } from "@consts";
 
 const blog = (await getCollection("blog"))
   .filter((post) => !post.data.draft)
+  .filter(isBlogPostEntry)
   .sort((a, b) => b.data.date.valueOf() - a.data.date.valueOf())
   .slice(0, SITE.NUM_POSTS_ON_HOMEPAGE);
 
 const projects = (await getCollection("projects"))
-  .filter((project) => !project.data.draft)
   .sort((a, b) => b.data.date.valueOf() - a.data.date.valueOf())
   .slice(0, SITE.NUM_PROJECTS_ON_HOMEPAGE);
 
@@ -35,9 +36,9 @@ const work = await Promise.all(
 
 <PageLayout title={HOME.TITLE} description={HOME.DESCRIPTION}>
   <Container>
-    <h4 class="animate font-semibold text-black dark:text-white">
-      Hi, I'm Kim <span class="text-xl">👋🏻</span>
-    </h4>
+    <h3 class="animate text-3xl font-semibold text-black dark:text-white">
+      Hi, I'm Kim
+    </h3>
     <div class="space-y-16">
       <section>
         <article class="space-y-4">
@@ -47,13 +48,13 @@ const work = await Promise.all(
             Paulo) and for making public the material related to my capstone
             project for my computer science degree.
           </p>
-          <p class="animate">Maybe I'll more cool things here later,.</p>
+          <p class="animate">Maybe I'll more cool things here later.</p>
         </article>
       </section>
 
       <section class="animate space-y-6">
         <div class="flex flex-wrap gap-y-2 items-center justify-between">
-          <h5 class="font-semibold text-black dark:text-white">Latest posts</h5>
+          <h5 class="text-xl font-semibold text-black dark:text-white">Latest posts</h5>
           <Link href="/blog"> See all posts </Link>
         </div>
         <ul class="flex flex-col gap-4">

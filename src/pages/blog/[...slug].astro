@@ -1,49 +1,207 @@
 ---
-import { type CollectionEntry, getCollection } from "astro:content";
+import { getCollection } from "astro:content";
 import PageLayout from "@layouts/PageLayout.astro";
 import Container from "@components/Container.astro";
 import FormattedDate from "@components/FormattedDate.astro";
 import { readingTime } from "@lib/utils";
 import BackToPrev from "@components/BackToPrev.astro";
+import Breadcrumb from "@components/Breadcrumb.astro";
+import BlogFolderCard from "@components/BlogFolderCard.astro";
+import ArrowCard from "@components/ArrowCard.astro";
+import {
+  type BlogFolderEntry,
+  type BlogPostEntry,
+  isBlogFolderEntry,
+  isBlogPostEntry,
+} from "@lib/blogEntries";
 
 export async function getStaticPaths() {
-  const posts = (await getCollection("blog"))
-    .filter(post => !post.data.draft)
-    .sort((a, b) => b.data.date.valueOf() - a.data.date.valueOf());
-  return posts.map((post) => ({
-    params: { slug: post.slug },
-    props: post,
+  const entries = (await getCollection("blog")).filter(
+    (post) => !post.data.draft,
+  );
+
+  // collect all path arrays (full post paths and folder prefixes)
+  const paths = new Set<string>();
+  entries.forEach((entry) => {
+    if (entry.data.folder === true) {
+      const folderSlug = entry.slug.replace(/\/index$/, "");
+      if (folderSlug) {
+        paths.add(folderSlug);
+      }
+      return;
+    }
+
+    const parts = entry.slug.split("/");
+    // add full post path as a string
+    paths.add(entry.slug);
+    // add each prefix as a folder path string
+    for (let i = 1; i < parts.length; i++) {
+      const prefix = parts.slice(0, i).join("/");
+      paths.add(prefix);
+    }
+  });
+
+  return Array.from(paths).map((p) => ({
+    params: { slug: p },
   }));
 }
-type Props = CollectionEntry<"blog">;
 
-const post = Astro.props;
-const { Content } = await post.render();
+const params = Astro.params;
+const rawSlug = params?.slug;
+const slug = Array.isArray(rawSlug) ? rawSlug.join("/") : (rawSlug ?? "");
+
+const entries = (await getCollection("blog")).filter(
+  (post) => !post.data.draft,
+);
+const folderMetaBySlug = new Map<string, BlogFolderEntry>();
+entries.forEach((entry) => {
+  if (isBlogFolderEntry(entry)) {
+    const folderSlug = entry.slug.replace(/\/index$/, "");
+    if (folderSlug) {
+      if (folderMetaBySlug.has(folderSlug)) {
+        throw new Error(
+          `Duplicate blog folder index for "${folderSlug}". Keep only one folder entry with folder: true.`,
+        );
+      }
+      folderMetaBySlug.set(folderSlug, entry);
+    }
+  }
+});
+const posts = entries.filter(isBlogPostEntry);
+
+const matchedPost = posts.find((p) => p.slug === slug);
+const rendered = matchedPost ? await matchedPost.render() : null;
+const folderMeta = folderMetaBySlug.get(slug);
+const breadcrumbLabelByPath = Array.from(folderMetaBySlug.entries()).reduce(
+  (acc, [path, entry]) => {
+    acc[path] = entry.data.title;
+    return acc;
+  },
+  {} as Record<string, string>,
+);
+// compute folders and posts for current slug (for folder listing view)
+const prefix = slug ? `${slug}/` : "";
+const depth = slug ? slug.split("/").length : 0;
+
+const folderSet: Set<string> = new Set();
+const postsList: BlogPostEntry[] = [];
+
+posts.forEach((p) => {
+  if (!prefix) {
+    const parts = p.slug.split("/");
+    if (parts.length > 1) {
+      folderSet.add(parts[0]);
+    } else {
+      postsList.push(p);
+    }
+  } else if (p.slug.startsWith(prefix)) {
+    const remainder = p.slug.split("/").slice(depth);
+    if (remainder.length === 1) {
+      postsList.push(p);
+    } else if (remainder.length > 1) {
+      folderSet.add(remainder[0]);
+    }
+  }
+});
+
+const folders: string[] = Array.from(folderSet).sort();
+const currentFolderName =
+  folderMeta?.data.title ?? slug.split("/").slice(-1)[0];
 ---
 
-<PageLayout title={post.data.title} description={post.data.description}>
+<PageLayout
+  title={matchedPost
+    ? matchedPost.data.title
+    : `Blog${slug ? ` — ${currentFolderName}` : ""}`}
+  description={matchedPost
+    ? matchedPost.data.description
+    : (folderMeta?.data.description ?? "")}
+>
   <Container>
-    <div class="animate">
-      <BackToPrev href="/blog">
-        Back to blog
-      </BackToPrev>
+    <div class="space-y-6">
+      <Breadcrumb
+        slug={slug}
+        baseLabel="Blog"
+        baseHref="/blog"
+        labelByPath={breadcrumbLabelByPath}
+      />
+
+      {
+        matchedPost ? (
+          <div>
+            <div class="animate">
+              <BackToPrev href="/blog">Back to blog</BackToPrev>
+            </div>
+            <div class="space-y-1 my-6">
+              <div class="animate flex items-center gap-1.5">
+                <div class="font-base text-sm">
+                  <FormattedDate date={matchedPost.data.date} />
+                </div>
+                &bull;
+                <div class="font-base text-sm">
+                  {readingTime(matchedPost.body)}
+                </div>
+              </div>
+              <div class="animate text-2xl font-semibold text-black dark:text-white">
+                {matchedPost.data.title}
+              </div>
+            </div>
+            <article class="animate">
+              {rendered ? <rendered.Content /> : null}
+            </article>
+          </div>
+        ) : (
+          <div class="space-y-4">
+            <div class="space-y-1">
+              <div class="font-semibold text-xl text-black dark:text-white">
+                {currentFolderName}
+              </div>
+              {folderMeta?.data.description && (
+                <div class="text-sm text-gray-600 dark:text-gray-300">
+                  {folderMeta.data.description}
+                </div>
+              )}
+            </div>
+            <div class="space-y-4">
+              {folders.length > 0 && (
+                <section>
+                  <div class="text-sm font-semibold">Folders</div>
+                  <div class="mt-3 grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-4">
+                    {folders.map((f) => {
+                      const folderSlug = `${prefix}${f}`.replace(/\/\//g, "/");
+                      const meta = folderMetaBySlug.get(folderSlug);
+                      return (
+                        <BlogFolderCard
+                          name={meta?.data.title ?? f}
+                          description={meta?.data.description}
+                          href={`/blog/${folderSlug}`.replace(/\/\//g, "/")}
+                        />
+                      );
+                    })}
+                  </div>
+                </section>
+              )}
+
+              {postsList.length > 0 && (
+                <section>
+                  <div class="text-sm font-semibold">Posts</div>
+                  <ul class="mt-2 flex flex-col gap-2">
+                    {postsList
+                      .sort(
+                        (a, b) => b.data.date.valueOf() - a.data.date.valueOf(),
+                      )
+                      .map((p) => (
+                        <li>
+                          <ArrowCard entry={p} />
+                        </li>
+                      ))}
+                  </ul>
+                </section>
+              )}
+            </div>
+          </div>
+        )
+      }
     </div>
-    <div class="space-y-1 my-10">
-      <div class="animate flex items-center gap-1.5">
-        <div class="font-base text-sm">
-          <FormattedDate date={post.data.date} />
-        </div>
-        &bull;
-        <div class="font-base text-sm">
-          {readingTime(post.body)}
-        </div>
-      </div>
-      <div class="animate text-2xl font-semibold text-black dark:text-white">
-        {post.data.title}
-      </div>
-    </div>
-    <article class="animate">
-      <Content />
-    </article>
   </Container>
 </PageLayout>
