@@ -1,8 +1,10 @@
 ---
-title: "Following tutorial 1: Setting up QEMU and Libvirt for Kernel Development"
-description: "teste"
+title: "Tutorial 1: Setting up QEMU and Libvirt for Kernel Development"
+description: "My impressions on the FLUSP tutorial 'Setting up a test environment for Linux Kernel Dev using QEMU and libvirt'"
 date: 2026-02-25
 ---
+
+> Following FLUSP tutorial ["Setting up a test environment for Linux Kernel Dev using QEMU and libvirt"](https://flusp.ime.usp.br/kernel/qemu-libvirt-setup/)
 
 This tutorial covers setting up QEMU and libvirt to compile and test the Linux kernel inside a Virtual Machine. Although the official tutorial is comprehensive and easy to follow, I had to tweak some settings to get everything working smoothly on my Manjaro Linux laptop.
 
@@ -14,7 +16,7 @@ When trying to run the VM with `virsh`, I immediately hit a permission issue whe
 
 The best solution I found was to simply not use `sudo` for these commands.
 
-Instead, the `create_vm_virsh` script should call `virt-install` in user mode. To do this, use the `--connect qemu:///session` flag, which ensures the VM runs with your standard user permissions.
+Instead, the `create_vm_virsh` script should call `virt-install` in user mode. To achieve this, I used the `--connect qemu:///session` flag, which ensures the VM runs with your standard user permissions.
 
 Additionally, to communicate with the VM, I used the following arguments:
 
@@ -44,5 +46,4 @@ And send files back and forth using `scp`:
 
 ```bash
 scp -P 2222 ~/teste.txt root@127.0.0.1:/root/foo
-```
 ```
