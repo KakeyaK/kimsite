@@ -2,7 +2,7 @@ This is my personal site.
 
 Maybe I'll more cool things here later.
 
-It's built using [Astro Nano](https://github.com/markhorn-dev/astro-nano)) as a template.
+It's built using [Astro Nano](https://github.com/markhorn-dev/astro-nano) as a template.
 
 ## 💻 Commands
 
