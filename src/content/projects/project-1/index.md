@@ -6,7 +6,7 @@ demoURL: "https://astro-sphere-demo.vercel.app"
 repoURL: "https://github.com/markhorn-dev/astro-sphere"
 ---
 
-![Astro Sphere Lighthouse Score](/astro-sphere.jpg)
+Astro Sphere Lighthouse Score
 
 Astro Sphere is a static, minimalist, lightweight, lightning fast portfolio and blog theme based on my personal website.
 
@@ -15,12 +15,8 @@ It is primarily Astro, Tailwind and Typescript, with a very small amount of Soli
 ## 🚀 Deploy your own
 
 <div class="flex gap-2">
-  <a target="_blank" aria-label="Deploy with Vercel" href="https://vercel.com/new/clone?repository-url=https://github.com/markhorn-dev/astro-sphere">
-    <img src="/deploy_vercel.svg" />
-  </a>
-  <a target="_blank" aria-label="Deploy with Netlify" href="https://app.netlify.com/start/deploy?repository=https://github.com/markhorn-dev/astro-sphere">
-    <img src="/deploy_netlify.svg" />
-  </a>
+  <a target="_blank" aria-label="Deploy with Vercel" href="https://vercel.com/new/clone?repository-url=https://github.com/markhorn-dev/astro-sphere">Deploy with Vercel</a>
+  <a target="_blank" aria-label="Deploy with Netlify" href="https://app.netlify.com/start/deploy?repository=https://github.com/markhorn-dev/astro-sphere">Deploy with Netlify</a>
 </div>
 
 ## 📋 Features
@@ -41,7 +37,7 @@ It is primarily Astro, Tailwind and Typescript, with a very small amount of Soli
 - ✅ Searchable content (posts and projects)
 
 ## 💯 Lighthouse score
-![Astro Sphere Lighthouse Score](/lighthouse.png)
+Astro Sphere Lighthouse Score
 
 ## 🕊️ Lightweight
 All pages under 100kb (including fonts)
