@@ -1,5 +1,6 @@
 ---
 import "../styles/global.css";
+import "../styles/chaos.css";
 import "@fontsource/inter/latin-400.css";
 import "@fontsource/inter/latin-600.css";
 import "@fontsource/lora/400.css";
@@ -86,6 +87,7 @@ const { title, description, image = "/nano.png" } = Astro.props;
     preloadTheme();
     onScroll();
     animate();
+    initChaos();
 
     const backToTop = document.getElementById("back-to-top");
     backToTop?.addEventListener("click", (event) => scrollToTop(event));
@@ -120,6 +122,35 @@ const { title, description, image = "/nano.png" } = Astro.props;
       });
 
     document.addEventListener("scroll", onScroll);
+  }
+
+  function initChaos() {
+    const level = parseInt(localStorage.getItem("chaos") || "0", 10);
+    applyChaosLevel(level);
+
+    document.querySelectorAll(".chaos-btn").forEach(function(btn) {
+      btn.addEventListener("click", function() {
+        const newLevel = parseInt(btn.dataset.level, 10);
+        localStorage.setItem("chaos", String(newLevel));
+        applyChaosLevel(newLevel);
+      });
+    });
+  }
+
+  function applyChaosLevel(level) {
+    if (level === 0) {
+      document.documentElement.removeAttribute("data-chaos");
+      preloadTheme();
+    } else {
+      document.documentElement.setAttribute("data-chaos", String(level));
+      // Chaos has its own palette; neutralise Tailwind dark variants
+      document.documentElement.classList.remove("dark");
+    }
+
+    document.querySelectorAll(".chaos-btn").forEach(function(btn) {
+      const isActive = parseInt(btn.dataset.level, 10) === level;
+      btn.setAttribute("data-active", String(isActive));
+    });
   }
 
   function animate() {
@@ -189,4 +220,5 @@ const { title, description, image = "/nano.png" } = Astro.props;
   document.addEventListener("DOMContentLoaded", () => init());
   document.addEventListener("astro:after-swap", () => init());
   preloadTheme();
+  applyChaosLevel(parseInt(localStorage.getItem("chaos") || "0", 10));
 </script>

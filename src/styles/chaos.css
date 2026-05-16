@@ -1,0 +1,241 @@
+/* ══════════════════════════════════════════════════════════════════
+   Chaos Level Theming System
+
+   Level 0 = default (stone-minimal, defined in global.css)
+   Level 1 = Warm Studio   (terracotta warmth, editorial coziness)
+   Level 2 = Electric Bloom (purple→pink→orange gradients, vibrant)
+
+   Applied via: html[data-chaos="N"] attribute
+   Stored in:   localStorage key "chaos"
+
+   When chaos > 0, the .dark class is removed from html so that
+   Tailwind's dark-mode variants don't fight the chaos palette.
+   ══════════════════════════════════════════════════════════════════ */
+
+/* ── Chaos button active-state (works across all chaos levels) ────── */
+.chaos-btn {
+  opacity: 0.4;
+  transition: opacity 300ms ease, box-shadow 300ms ease;
+}
+.chaos-btn:hover {
+  opacity: 0.75;
+}
+.chaos-btn[data-active="true"] {
+  opacity: 1;
+  box-shadow: 0 0 0 2px currentColor;
+}
+
+/* ══════════════════════════════════════════════════════════════════
+   CHAOS LEVEL 1: Warm Studio
+
+   A cozy editorial aesthetic — warm cream paper, terracotta accents,
+   espresso headings. Like reading in a sun-drenched library.
+   ══════════════════════════════════════════════════════════════════ */
+
+html[data-chaos="1"] body {
+  background-color: #FAF5ED;
+  color: #7a4f2e;
+  /* subtle warm paper dot grain */
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='6' height='6'%3E%3Ccircle cx='1.5' cy='1.5' r='0.65' fill='%23af6b3030'/%3E%3C/svg%3E");
+  background-size: 6px 6px;
+}
+
+html[data-chaos="1"] header {
+  background-color: rgba(250, 245, 237, 0.9) !important;
+  border-bottom: 1px solid rgba(175, 107, 48, 0.18);
+}
+
+/* ── Body text ── */
+html[data-chaos="1"] .text-black\/50 { color: #7a4f2e; }
+html[data-chaos="1"] .dark\:text-white\/75 { color: #7a4f2e; }
+
+/* ── Strong / heading text ── */
+html[data-chaos="1"] .text-black  { color: #2d1408; }
+html[data-chaos="1"] .dark\:text-white { color: #2d1408; }
+
+html[data-chaos="1"] h1,
+html[data-chaos="1"] h2,
+html[data-chaos="1"] h3,
+html[data-chaos="1"] h4,
+html[data-chaos="1"] h5 {
+  color: #2d1408;
+}
+
+/* ── Hover text ── */
+html[data-chaos="1"] .hover\:text-black:hover { color: #2d1408; }
+html[data-chaos="1"] .dark\:hover\:text-white:hover { color: #2d1408; }
+
+/* ── Borders ── */
+html[data-chaos="1"] .border-black\/15 { border-color: rgba(175, 107, 48, 0.22); }
+html[data-chaos="1"] .dark\:border-white\/20 { border-color: rgba(175, 107, 48, 0.22); }
+
+/* ── Hover backgrounds ── */
+html[data-chaos="1"] .hover\:bg-black\/5:hover { background-color: rgba(175, 107, 48, 0.08); }
+html[data-chaos="1"] .dark\:hover\:bg-white\/5:hover { background-color: rgba(175, 107, 48, 0.08); }
+
+/* ── Link underline decorations ── */
+html[data-chaos="1"] .decoration-black\/15 { text-decoration-color: rgba(175, 107, 48, 0.3); }
+html[data-chaos="1"] .dark\:decoration-white\/30 { text-decoration-color: rgba(175, 107, 48, 0.3); }
+html[data-chaos="1"] .hover\:decoration-black\/25:hover { text-decoration-color: rgba(175, 107, 48, 0.65); }
+html[data-chaos="1"] .hover\:dark\:decoration-white\/50:hover { text-decoration-color: rgba(175, 107, 48, 0.65); }
+
+/* ── Prose / article overrides ── */
+html[data-chaos="1"] .prose {
+  --tw-prose-body: #7a4f2e;
+  --tw-prose-headings: #2d1408;
+  --tw-prose-links: #7a4f2e;
+  --tw-prose-bold: #2d1408;
+  --tw-prose-code: #2d1408;
+  --tw-prose-quotes: #7a4f2e;
+  --tw-prose-captions: #7a4f2e;
+}
+
+html[data-chaos="1"] article h1,
+html[data-chaos="1"] article h2,
+html[data-chaos="1"] article h3,
+html[data-chaos="1"] article h4 {
+  color: #2d1408;
+  font-family: 'Lora', Georgia, serif;
+}
+
+html[data-chaos="1"] article a {
+  color: #7a4f2e;
+  text-decoration-color: rgba(175, 107, 48, 0.35);
+}
+html[data-chaos="1"] article a:hover {
+  color: #2d1408;
+  text-decoration-color: rgba(175, 107, 48, 0.7);
+}
+
+/* ── Footer ── */
+html[data-chaos="1"] footer {
+  color: #7a4f2e;
+  border-top: 1px solid rgba(175, 107, 48, 0.15);
+}
+
+/* ══════════════════════════════════════════════════════════════════
+   CHAOS LEVEL 2: Electric Bloom
+
+   Vibrant and alive — gradient headings, dot-grid background,
+   colorful card accents. Purple → Pink → Orange energy.
+   Still beautiful, still readable. Just… more.
+   ══════════════════════════════════════════════════════════════════ */
+
+html[data-chaos="2"] body {
+  background-color: #F8F8FF;
+  color: #3d1a6e;
+  /* subtle purple dot grid */
+  background-image: radial-gradient(rgba(168, 85, 247, 0.14) 1.5px, transparent 1.5px);
+  background-size: 22px 22px;
+}
+
+html[data-chaos="2"] header {
+  background-color: rgba(248, 248, 255, 0.92) !important;
+  border-bottom: none;
+  position: relative;
+}
+
+/* Gradient border under header */
+html[data-chaos="2"] header::after {
+  content: '';
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  height: 2px;
+  background: linear-gradient(90deg, #a855f7 0%, #ec4899 50%, #f97316 100%);
+}
+
+/* ── Body text ── */
+html[data-chaos="2"] .text-black\/50 { color: #3d1a6e; }
+html[data-chaos="2"] .dark\:text-white\/75 { color: #3d1a6e; }
+
+/* ── Strong text ── */
+html[data-chaos="2"] .text-black { color: #1a0a2e; }
+html[data-chaos="2"] .dark\:text-white { color: #1a0a2e; }
+
+/* ── Hover text ── */
+html[data-chaos="2"] .hover\:text-black:hover { color: #1a0a2e; }
+html[data-chaos="2"] .dark\:hover\:text-white:hover { color: #1a0a2e; }
+
+/* ── Gradient headings ── */
+html[data-chaos="2"] h1,
+html[data-chaos="2"] h2,
+html[data-chaos="2"] h3,
+html[data-chaos="2"] h4,
+html[data-chaos="2"] h5 {
+  background: linear-gradient(135deg, #a855f7 0%, #ec4899 50%, #f97316 100%);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+}
+
+/* ── Borders ── */
+html[data-chaos="2"] .border-black\/15 {
+  border-color: rgba(168, 85, 247, 0.28);
+  border-radius: 10px;
+}
+html[data-chaos="2"] .dark\:border-white\/20 {
+  border-color: rgba(168, 85, 247, 0.28);
+  border-radius: 10px;
+}
+
+/* ── Hover backgrounds ── */
+html[data-chaos="2"] .hover\:bg-black\/5:hover { background-color: rgba(168, 85, 247, 0.08); }
+html[data-chaos="2"] .dark\:hover\:bg-white\/5:hover { background-color: rgba(168, 85, 247, 0.08); }
+
+/* ── Link underline decorations ── */
+html[data-chaos="2"] .decoration-black\/15 { text-decoration-color: rgba(236, 72, 153, 0.35); }
+html[data-chaos="2"] .dark\:decoration-white\/30 { text-decoration-color: rgba(236, 72, 153, 0.35); }
+html[data-chaos="2"] .hover\:decoration-black\/25:hover { text-decoration-color: rgba(236, 72, 153, 0.7); }
+html[data-chaos="2"] .hover\:dark\:decoration-white\/50:hover { text-decoration-color: rgba(236, 72, 153, 0.7); }
+
+/* ── Prose / article overrides ── */
+html[data-chaos="2"] .prose {
+  --tw-prose-body: #3d1a6e;
+  --tw-prose-links: #9333ea;
+  --tw-prose-bold: #1a0a2e;
+  --tw-prose-code: #9333ea;
+  --tw-prose-quotes: #3d1a6e;
+  --tw-prose-captions: #3d1a6e;
+}
+
+html[data-chaos="2"] article h1,
+html[data-chaos="2"] article h2,
+html[data-chaos="2"] article h3,
+html[data-chaos="2"] article h4 {
+  background: linear-gradient(135deg, #a855f7 0%, #ec4899 50%, #f97316 100%);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+}
+
+html[data-chaos="2"] article a {
+  color: #9333ea;
+  text-decoration-color: rgba(236, 72, 153, 0.4);
+}
+html[data-chaos="2"] article a:hover {
+  color: #ec4899;
+  text-decoration-color: rgba(236, 72, 153, 0.8);
+}
+
+/* ── Card accent: cycling left-border colors on list items ── */
+html[data-chaos="2"] li:nth-child(3n+1) a.group {
+  border-left: 3px solid #a855f7;
+  border-radius: 0 10px 10px 0;
+}
+html[data-chaos="2"] li:nth-child(3n+2) a.group {
+  border-left: 3px solid #ec4899;
+  border-radius: 0 10px 10px 0;
+}
+html[data-chaos="2"] li:nth-child(3n+3) a.group,
+html[data-chaos="2"] li:nth-child(3n+0) a.group {
+  border-left: 3px solid #f97316;
+  border-radius: 0 10px 10px 0;
+}
+
+/* ── Footer ── */
+html[data-chaos="2"] footer {
+  color: #3d1a6e;
+  border-top: 1px solid rgba(168, 85, 247, 0.2);
+}
