@@ -36,7 +36,7 @@ const work = await Promise.all(
 
 <PageLayout title={HOME.TITLE} description={HOME.DESCRIPTION}>
   <Container>
-    <h3 class="animate text-3xl font-semibold text-black dark:text-white">
+    <h3 class="animate text-3xl font-semibold text-black">
       Hi, I'm Kim
     </h3>
     <div class="space-y-16">
@@ -54,7 +54,7 @@ const work = await Promise.all(
 
       <section class="animate space-y-6">
         <div class="flex flex-wrap gap-y-2 items-center justify-between">
-          <h5 class="text-xl font-semibold text-black dark:text-white">Latest posts</h5>
+          <h5 class="text-xl font-semibold text-black">Latest posts</h5>
           <Link href="/blog"> See all posts </Link>
         </div>
         <ul class="flex flex-col gap-4">
@@ -70,7 +70,7 @@ const work = await Promise.all(
       <!-- 
       <section class="animate space-y-6">
         <div class="flex flex-wrap gap-y-2 items-center justify-between">
-          <h5 class="font-semibold text-black dark:text-white">
+          <h5 class="font-semibold text-black">
             Work Experience
           </h5>
           <Link href="/work">
@@ -83,7 +83,7 @@ const work = await Promise.all(
               <div class="text-sm opacity-75">
                 {dateRange(entry.data.dateStart, entry.data.dateEnd)}
               </div>
-              <div class="font-semibold text-black dark:text-white">
+              <div class="font-semibold text-black">
                 {entry.data.company}
               </div>
               <div class="text-sm opacity-75">
@@ -99,7 +99,7 @@ const work = await Promise.all(
 
       <section class="animate space-y-6">
         <div class="flex flex-wrap gap-y-2 items-center justify-between">
-          <h5 class="font-semibold text-black dark:text-white">
+          <h5 class="font-semibold text-black">
             Recent projects
           </h5>
           <Link href="/projects">
@@ -116,7 +116,7 @@ const work = await Promise.all(
       </section>
 
       <section class="animate space-y-4">
-        <h5 class="font-semibold text-black dark:text-white">
+        <h5 class="font-semibold text-black">
           Let's Connect
         </h5>
         <article>

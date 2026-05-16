@@ -7,9 +7,6 @@
 
    Applied via: html[data-chaos="N"] attribute
    Stored in:   localStorage key "chaos"
-
-   When chaos > 0, the .dark class is removed from html so that
-   Tailwind's dark-mode variants don't fight the chaos palette.
    ══════════════════════════════════════════════════════════════════ */
 
 /* ── Chaos button active-state (works across all chaos levels) ────── */
@@ -47,11 +44,9 @@ html[data-chaos="1"] header {
 
 /* ── Body text ── */
 html[data-chaos="1"] .text-black\/50 { color: #7a4f2e; }
-html[data-chaos="1"] .dark\:text-white\/75 { color: #7a4f2e; }
 
 /* ── Strong / heading text ── */
-html[data-chaos="1"] .text-black  { color: #2d1408; }
-html[data-chaos="1"] .dark\:text-white { color: #2d1408; }
+html[data-chaos="1"] .text-black { color: #2d1408; }
 
 html[data-chaos="1"] h1,
 html[data-chaos="1"] h2,
@@ -63,21 +58,17 @@ html[data-chaos="1"] h5 {
 
 /* ── Hover text ── */
 html[data-chaos="1"] .hover\:text-black:hover { color: #2d1408; }
-html[data-chaos="1"] .dark\:hover\:text-white:hover { color: #2d1408; }
 
 /* ── Borders ── */
 html[data-chaos="1"] .border-black\/15 { border-color: rgba(175, 107, 48, 0.22); }
-html[data-chaos="1"] .dark\:border-white\/20 { border-color: rgba(175, 107, 48, 0.22); }
+html[data-chaos="1"] .border-black\/10 { border-color: rgba(175, 107, 48, 0.15); }
 
 /* ── Hover backgrounds ── */
 html[data-chaos="1"] .hover\:bg-black\/5:hover { background-color: rgba(175, 107, 48, 0.08); }
-html[data-chaos="1"] .dark\:hover\:bg-white\/5:hover { background-color: rgba(175, 107, 48, 0.08); }
 
 /* ── Link underline decorations ── */
 html[data-chaos="1"] .decoration-black\/15 { text-decoration-color: rgba(175, 107, 48, 0.3); }
-html[data-chaos="1"] .dark\:decoration-white\/30 { text-decoration-color: rgba(175, 107, 48, 0.3); }
 html[data-chaos="1"] .hover\:decoration-black\/25:hover { text-decoration-color: rgba(175, 107, 48, 0.65); }
-html[data-chaos="1"] .hover\:dark\:decoration-white\/50:hover { text-decoration-color: rgba(175, 107, 48, 0.65); }
 
 /* ── Prose / article overrides ── */
 html[data-chaos="1"] .prose {
@@ -113,6 +104,9 @@ html[data-chaos="1"] footer {
   border-top: 1px solid rgba(175, 107, 48, 0.15);
 }
 
+/* ── Breadcrumb ── */
+html[data-chaos="1"] .text-gray-600 { color: #7a4f2e; }
+
 /* ══════════════════════════════════════════════════════════════════
    CHAOS LEVEL 2: Electric Bloom
 
@@ -135,7 +129,7 @@ html[data-chaos="2"] header {
   position: relative;
 }
 
-/* Gradient border under header */
+/* Gradient rule under header */
 html[data-chaos="2"] header::after {
   content: '';
   position: absolute;
@@ -148,15 +142,12 @@ html[data-chaos="2"] header::after {
 
 /* ── Body text ── */
 html[data-chaos="2"] .text-black\/50 { color: #3d1a6e; }
-html[data-chaos="2"] .dark\:text-white\/75 { color: #3d1a6e; }
 
 /* ── Strong text ── */
 html[data-chaos="2"] .text-black { color: #1a0a2e; }
-html[data-chaos="2"] .dark\:text-white { color: #1a0a2e; }
 
 /* ── Hover text ── */
 html[data-chaos="2"] .hover\:text-black:hover { color: #1a0a2e; }
-html[data-chaos="2"] .dark\:hover\:text-white:hover { color: #1a0a2e; }
 
 /* ── Gradient headings ── */
 html[data-chaos="2"] h1,
@@ -171,24 +162,18 @@ html[data-chaos="2"] h5 {
 }
 
 /* ── Borders ── */
-html[data-chaos="2"] .border-black\/15 {
-  border-color: rgba(168, 85, 247, 0.28);
-  border-radius: 10px;
-}
-html[data-chaos="2"] .dark\:border-white\/20 {
+html[data-chaos="2"] .border-black\/15,
+html[data-chaos="2"] .border-black\/10 {
   border-color: rgba(168, 85, 247, 0.28);
   border-radius: 10px;
 }
 
 /* ── Hover backgrounds ── */
 html[data-chaos="2"] .hover\:bg-black\/5:hover { background-color: rgba(168, 85, 247, 0.08); }
-html[data-chaos="2"] .dark\:hover\:bg-white\/5:hover { background-color: rgba(168, 85, 247, 0.08); }
 
 /* ── Link underline decorations ── */
 html[data-chaos="2"] .decoration-black\/15 { text-decoration-color: rgba(236, 72, 153, 0.35); }
-html[data-chaos="2"] .dark\:decoration-white\/30 { text-decoration-color: rgba(236, 72, 153, 0.35); }
 html[data-chaos="2"] .hover\:decoration-black\/25:hover { text-decoration-color: rgba(236, 72, 153, 0.7); }
-html[data-chaos="2"] .hover\:dark\:decoration-white\/50:hover { text-decoration-color: rgba(236, 72, 153, 0.7); }
 
 /* ── Prose / article overrides ── */
 html[data-chaos="2"] .prose {
@@ -239,3 +224,7 @@ html[data-chaos="2"] footer {
   color: #3d1a6e;
   border-top: 1px solid rgba(168, 85, 247, 0.2);
 }
+
+/* ── Breadcrumb ── */
+html[data-chaos="2"] .text-gray-600 { color: #3d1a6e; }
+html[data-chaos="2"] .text-gray-300 { color: #9333ea; }
