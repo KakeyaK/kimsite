@@ -2,9 +2,6 @@
 import Container from "@components/Container.astro";
 import { SITE } from "@consts";
 import BackToTop from "@components/BackToTop.astro";
-import Sun from "@components/icons/Sun.astro";
-import Moon from "@components/icons/Moon.astro";
-import System from "@components/icons/System.astro";
 ---
 
 <footer class="animate">
@@ -19,28 +16,20 @@ import System from "@components/icons/System.astro";
         &copy; 2026 {`|`}
         {SITE.NAME}
       </div>
-      <div class="flex flex-wrap gap-1 items-center">
-        <button
-          id="light-theme-button"
-          aria-label="Light theme"
-          class="group size-8 flex items-center justify-center rounded-full"
-        >
-          <Sun />
-        </button>
-        <button
-          id="dark-theme-button"
-          aria-label="Dark theme"
-          class="group size-8 flex items-center justify-center rounded-full"
-        >
-          <Moon />
-        </button>
-        <button
-          id="system-theme-button"
-          aria-label="System theme"
-          class="group size-8 flex items-center justify-center rounded-full"
-        >
-          <System />
-        </button>
+      <div class="flex items-center gap-1.5">
+        <span class="text-xs opacity-40 select-none tracking-wide">chaos</span>
+        <div class="flex gap-1" role="group" aria-label="Chaos level">
+          {[0, 1, 2].map((level) => (
+            <button
+              class="chaos-btn size-6 text-xs font-mono flex items-center justify-center rounded border border-black/15 transition-all duration-300"
+              data-level={String(level)}
+              data-active="false"
+              aria-label={`Chaos level ${level}`}
+            >
+              {level}
+            </button>
+          ))}
+        </div>
       </div>
     </div>
   </Container>

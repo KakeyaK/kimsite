@@ -12,11 +12,11 @@ const { name, href, description } = Astro.props;
 
 <a
   href={href}
-  class="aspect-square flex items-center justify-center p-4 rounded-lg border border-black/10 dark:border-white/10 hover:bg-black/5 dark:hover:bg-white/5 text-left"
+  class="aspect-square flex items-center justify-center p-4 rounded-lg border border-black/10 hover:bg-black/5 text-left"
 >
   <div class="space-y-2">
     <div class="flex flex-col items-center gap-2 font-semibold">
-      <Folder class="text-black/60 dark:text-white/60" />
+      <Folder class="text-black/60" />
       <span class="line-clamp-3">{name}</span>
     </div>
   </div>

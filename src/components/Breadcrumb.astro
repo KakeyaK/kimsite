@@ -10,7 +10,7 @@ const { slug = "", baseLabel, baseHref, labelByPath = {} } = Astro.props;
 const parts = slug ? slug.split("/") : [];
 ---
 
-<nav class="text-sm text-gray-600 dark:text-gray-300">
+<nav class="text-sm text-gray-600">
   <a href={baseHref} class="hover:underline">{baseLabel}</a>
   {parts.length > 0 && <span class="mx-2">/</span>}
   {

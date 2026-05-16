@@ -1,5 +1,6 @@
 ---
 import "../styles/global.css";
+import "../styles/chaos.css";
 import "@fontsource/inter/latin-400.css";
 import "@fontsource/inter/latin-600.css";
 import "@fontsource/lora/400.css";
@@ -83,9 +84,9 @@ const { title, description, image = "/nano.png" } = Astro.props;
 
 <script is:inline>
   function init() {
-    preloadTheme();
     onScroll();
     animate();
+    initChaos();
 
     const backToTop = document.getElementById("back-to-top");
     backToTop?.addEventListener("click", (event) => scrollToTop(event));
@@ -93,33 +94,33 @@ const { title, description, image = "/nano.png" } = Astro.props;
     const backToPrev = document.getElementById("back-to-prev");
     backToPrev?.addEventListener("click", () => window.history.back());
 
-    const lightThemeButton = document.getElementById("light-theme-button");
-    lightThemeButton?.addEventListener("click", () => {
-      localStorage.setItem("theme", "light");
-      toggleTheme(false);
-    });
-
-    const darkThemeButton = document.getElementById("dark-theme-button");
-    darkThemeButton?.addEventListener("click", () => {
-      localStorage.setItem("theme", "dark");
-      toggleTheme(true);
-    });
-
-    const systemThemeButton = document.getElementById("system-theme-button");
-    systemThemeButton?.addEventListener("click", () => {
-      localStorage.setItem("theme", "system");
-      toggleTheme(window.matchMedia("(prefers-color-scheme: dark)").matches);
-    });
-
-    window
-      .matchMedia("(prefers-color-scheme: dark)")
-      .addEventListener("change", (event) => {
-        if (localStorage.theme === "system" || !localStorage.theme) {
-          toggleTheme(event.matches);
-        }
-      });
-
     document.addEventListener("scroll", onScroll);
+  }
+
+  function initChaos() {
+    const level = parseInt(localStorage.getItem("chaos") || "0", 10);
+    applyChaosLevel(level);
+
+    document.querySelectorAll(".chaos-btn").forEach(function(btn) {
+      btn.addEventListener("click", function() {
+        const newLevel = parseInt(btn.dataset.level, 10);
+        localStorage.setItem("chaos", String(newLevel));
+        applyChaosLevel(newLevel);
+      });
+    });
+  }
+
+  function applyChaosLevel(level) {
+    if (level === 0) {
+      document.documentElement.removeAttribute("data-chaos");
+    } else {
+      document.documentElement.setAttribute("data-chaos", String(level));
+    }
+
+    document.querySelectorAll(".chaos-btn").forEach(function(btn) {
+      const isActive = parseInt(btn.dataset.level, 10) === level;
+      btn.setAttribute("data-active", String(isActive));
+    });
   }
 
   function animate() {
@@ -148,45 +149,7 @@ const { title, description, image = "/nano.png" } = Astro.props;
     });
   }
 
-  function toggleTheme(dark) {
-    const css = document.createElement("style");
-
-    css.appendChild(
-      document.createTextNode(
-        `* {
-             -webkit-transition: none !important;
-             -moz-transition: none !important;
-             -o-transition: none !important;
-             -ms-transition: none !important;
-             transition: none !important;
-          }
-        `,
-      ),
-    );
-
-    document.head.appendChild(css);
-
-    if (dark) {
-      document.documentElement.classList.add("dark");
-    } else {
-      document.documentElement.classList.remove("dark");
-    }
-
-    window.getComputedStyle(css).opacity;
-    document.head.removeChild(css);
-  }
-
-  function preloadTheme() {
-    const userTheme = localStorage.theme;
-
-    if (userTheme === "light" || userTheme === "dark") {
-      toggleTheme(userTheme === "dark");
-    } else {
-      toggleTheme(window.matchMedia("(prefers-color-scheme: dark)").matches);
-    }
-  }
-
   document.addEventListener("DOMContentLoaded", () => init());
   document.addEventListener("astro:after-swap", () => init());
-  preloadTheme();
+  applyChaosLevel(parseInt(localStorage.getItem("chaos") || "0", 10));
 </script>
