@@ -4,7 +4,7 @@ date: 2026-04-29
 description: "A blog post about my experience contributing to the Linux Kernel"
 ---
 
-Together with [Raffael Raiél ](https://rfflrt.github.io/) I contributed to refactoring IIO tree code by replacing old style mutex lock and unlock with the newer `guard()` macro. 
+Together with [Raffael Raiél](https://rfflrt.github.io/) I contributed to refactoring IIO tree code by replacing old style mutex lock and unlock with the newer `guard()` macro. 
 
 We started by searching a suitable file for improvement. Using ripgrep we found that the file `drivers/iio/light/vcnl4000.c` had several uses of mutex lock and unlock. Moreover, it was a good fit for us since we were already used to working with the iio tree. 
 
