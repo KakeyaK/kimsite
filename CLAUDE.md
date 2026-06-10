@@ -1,0 +1,40 @@
+# CLAUDE.md
+
+This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
+
+## Overview
+
+Personal website built on Astro 5 (static output), based on the [Astro Nano](https://github.com/markhorn-dev/astro-nano) template. Deployed to GitHub Pages via `.github/workflows/` on every push to `main` (uses `withastro/action`). Site URL is configured in `astro.config.mjs` (`site: https://www.kakeya.kim/`).
+
+## Commands
+
+- `npm run dev` — dev server at `localhost:4321`
+- `npm run build` — runs `astro check` (type-check) then `astro build`. Use this to validate changes; there is no separate test suite.
+- `npm run preview` — preview the production build locally
+- `npm run lint` / `npm run lint:fix` — ESLint (Astro + TS + jsx-a11y)
+- `npm run astro -- --help` — Astro CLI
+
+Path alias: `@*` maps to `./src/*` (e.g. `@components/...`, `@lib/...`, `@layouts/...`, `@consts`, `@types`). Defined in `tsconfig.json`, which extends `astro/tsconfigs/strict`.
+
+## Content architecture
+
+Content lives in `src/content/` as three Astro content collections defined in [src/content/config.ts](src/content/config.ts): `blog`, `work`, `projects`. Schemas are Zod-validated — changing frontmatter shape requires editing the schema there. Entries with `draft: true` are filtered out of all listings.
+
+### The blog folder system (most important / non-obvious part)
+
+The blog supports arbitrary **nested folders**, unlike the flat `projects`/`work` collections. This is a custom extension on top of the template.
+
+- The `blog` collection schema is a **union** of two shapes (see `config.ts`): a normal post (`folder` absent or `false`) and a folder index (`folder: true`). A folder is just a markdown file (conventionally `index.md`) with `folder: true` plus `title`/`description` — it carries no body content, only metadata used to label/describe the folder in listings and breadcrumbs.
+- The on-disk directory structure under `src/content/blog/` *is* the folder hierarchy. An entry's `slug` (e.g. `usp/MAC0470/Tutorials/tutorial_1`) encodes its path. Folder index files have slugs ending in `/index`, normalized by stripping `/index`.
+- [src/lib/blogEntries.ts](src/lib/blogEntries.ts) provides the type guards `isBlogFolderEntry` / `isBlogPostEntry` and the `BlogPostEntry` / `BlogFolderEntry` types. **Always use these guards** to distinguish folders from posts rather than checking `entry.data.folder` ad hoc.
+- [src/pages/blog/[...slug].astro](src/pages/blog/[...slug].astro) is the heart of navigation. Its `getStaticPaths` generates a route for every post slug **and** every folder prefix. At render time the same slug either matches a post (renders the article) or is treated as a folder (renders sub-folder cards + post list for that level). Duplicate folder indexes for the same path throw an error at build time.
+- [src/pages/blog/index.astro](src/pages/blog/index.astro) renders the blog root: top-level folder cards plus top-level posts grouped by year (descending).
+
+When adding nested blog content, place markdown under the appropriate directory and add an `index.md` with `folder: true` for any new folder you want labeled in the UI.
+
+## Layout & styling
+
+- [src/layouts/PageLayout.astro](src/layouts/PageLayout.astro) is the single page shell (`Head` + `Header` + `<slot/>` + `Footer`), takes `title`/`description`. Page `<title>` becomes `${title} | ${SITE.NAME}`.
+- Site-wide config (name, email, socials, homepage item counts) and per-page metadata live in [src/consts.ts](src/consts.ts), typed by [src/types.ts](src/types.ts). Homepage counts like `NUM_POSTS_ON_HOMEPAGE` control how many items `index.astro` shows.
+- Tailwind (`@astrojs/tailwind` + typography plugin). Use the `cn()` helper in [src/lib/utils.ts](src/lib/utils.ts) (clsx + tailwind-merge) for conditional classes. `utils.ts` also has `formatDate`, `readingTime`, and `dateRange`.
+- Dark mode is supported throughout via `dark:` variants and a theme toggle (Sun/Moon/System icons in `src/components/icons/`).
