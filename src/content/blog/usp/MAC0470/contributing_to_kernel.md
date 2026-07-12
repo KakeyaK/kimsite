@@ -1,7 +1,7 @@
 ---
 title: "Contributing to the Linux Kernel"
 date: 2026-04-29
-description: "A blog post about my experience contributing to the Linux Kernel"
+description: "A blog post about my experience during the 1st phase of MAC0470 2026"
 ---
 
 Together with [Raffael Raiél](https://rfflrt.github.io/) I contributed to refactoring IIO tree code by replacing old style mutex lock and unlock with the newer `guard()` macro. 

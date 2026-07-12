@@ -1,7 +1,7 @@
 ---
 title: "Contributing to the ArKanjo Project"
 date: 2026-07-12
-description: "A blog post about my experience contributing to the ArKanjo Project"
+description: "A blog post about my experience during the 1nd phase of MAC0470 2026"
 ---
 
 This post is an account of my experience during the 2nd phase of the Open Source Software Development course at the University of São Paulo. In this phase we had to contribute to an open source project related to the Linux world. As before, I worked alongside [Raffael Raiél](https://rfflrt.github.io/).
