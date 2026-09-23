@@ -5,6 +5,12 @@ import BackToTop from "@components/BackToTop.astro";
 import Sun from "@components/icons/Sun.astro";
 import Moon from "@components/icons/Moon.astro";
 import System from "@components/icons/System.astro";
+
+const themeButtonClass = [
+  "group size-8 flex items-center justify-center rounded-full",
+  "transition-colors duration-300 ease-in-out",
+  "aria-pressed:bg-black/5 dark:aria-pressed:bg-white/10",
+].join(" ");
 ---
 
 <footer class="animate">
@@ -23,21 +29,24 @@ import System from "@components/icons/System.astro";
         <button
           id="light-theme-button"
           aria-label="Light theme"
-          class="group size-8 flex items-center justify-center rounded-full"
+          aria-pressed="false"
+          class={themeButtonClass}
         >
           <Sun />
         </button>
         <button
           id="dark-theme-button"
           aria-label="Dark theme"
-          class="group size-8 flex items-center justify-center rounded-full"
+          aria-pressed="false"
+          class={themeButtonClass}
         >
           <Moon />
         </button>
         <button
           id="system-theme-button"
           aria-label="System theme"
-          class="group size-8 flex items-center justify-center rounded-full"
+          aria-pressed="false"
+          class={themeButtonClass}
         >
           <System />
         </button>

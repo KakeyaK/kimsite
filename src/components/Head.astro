@@ -93,22 +93,27 @@ const { title, description, image = "/nano.png" } = Astro.props;
     const backToPrev = document.getElementById("back-to-prev");
     backToPrev?.addEventListener("click", () => window.history.back());
 
+    markActiveThemeButton();
+
     const lightThemeButton = document.getElementById("light-theme-button");
     lightThemeButton?.addEventListener("click", () => {
       localStorage.setItem("theme", "light");
       toggleTheme(false);
+      markActiveThemeButton();
     });
 
     const darkThemeButton = document.getElementById("dark-theme-button");
     darkThemeButton?.addEventListener("click", () => {
       localStorage.setItem("theme", "dark");
       toggleTheme(true);
+      markActiveThemeButton();
     });
 
     const systemThemeButton = document.getElementById("system-theme-button");
     systemThemeButton?.addEventListener("click", () => {
       localStorage.setItem("theme", "system");
       toggleTheme(window.matchMedia("(prefers-color-scheme: dark)").matches);
+      markActiveThemeButton();
     });
 
     window
@@ -174,6 +179,17 @@ const { title, description, image = "/nano.png" } = Astro.props;
 
     window.getComputedStyle(css).opacity;
     document.head.removeChild(css);
+  }
+
+  function markActiveThemeButton() {
+    const userTheme = localStorage.theme;
+    const active =
+      userTheme === "light" || userTheme === "dark" ? userTheme : "system";
+
+    ["light", "dark", "system"].forEach((theme) => {
+      const button = document.getElementById(`${theme}-theme-button`);
+      button?.setAttribute("aria-pressed", String(theme === active));
+    });
   }
 
   function preloadTheme() {
