@@ -7,9 +7,10 @@ import { SITE } from "@consts";
 type Props = {
   title: string;
   description: string;
+  class?: string;
 };
 
-const { title, description } = Astro.props;
+const { title, description, class: className } = Astro.props;
 ---
 
 <!doctype html>
@@ -19,7 +20,7 @@ const { title, description } = Astro.props;
   </head>
   <body>
     <Header />
-    <main>
+    <main class={className}>
       <slot />
     </main>
     <Footer />
