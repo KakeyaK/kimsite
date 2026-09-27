@@ -1,0 +1,69 @@
+import { useEffect, useMemo, useState } from "preact/hooks";
+import type { ISO3, TravelData } from "@lib/map/data";
+import { atYear, statusColors, yearRange } from "@lib/map/stats";
+import { countryName } from "@lib/map/meta";
+import { createStore } from "@lib/map/storage";
+import { cn } from "@lib/utils";
+import { useMapView } from "./useMapView";
+import { StatsStrip } from "./StatsStrip";
+import { TimelineSlider } from "./TimelineSlider";
+import { btn, container, mapBox, overlay, STATUS_LABEL } from "./ui";
+
+export default function KimMap({ data }: { data: TravelData }) {
+  const { ref, view, error } = useMapView();
+  const [year, setYear] = useState<number | null>(null);
+  const [selected, setSelected] = useState<ISO3 | null>(null);
+  const range = useMemo(() => yearRange(data), [data]);
+  const shown = useMemo(() => (year === null ? data : atYear(data, year)), [data, year]);
+
+  useEffect(() => {
+    void view?.setCountryColors(statusColors(shown));
+    void view?.setPins(shown.cities);
+  }, [view, shown]);
+
+  useEffect(() => (view ? view.onCountryClick(setSelected) : undefined), [view]);
+
+  function startOwn() {
+    const store = createStore();
+    const mine = store.load();
+    const hasMine = Object.keys(mine.countries).length > 0 || mine.cities.length > 0;
+    if (hasMine && !confirm("Replace your own map with a copy of mine?")) return;
+    store.save(structuredClone(data));
+    window.location.href = "/projects/map";
+  }
+
+  const entry = selected ? data.countries[selected] : undefined;
+
+  return (
+    <div class="space-y-6">
+      <div class="relative">
+        {error ? <p class={cn(container, "py-8")}>{error}</p> : <div ref={ref} class={mapBox} />}
+        {selected && (
+          <section class={cn(overlay, "absolute inset-x-3 bottom-3 z-10 p-4 md:inset-x-auto md:bottom-auto md:left-3 md:top-3 md:w-80")} aria-live="polite">
+            <div class="flex items-start justify-between gap-2">
+              <h2 class="font-semibold text-black dark:text-white">{countryName(selected)}</h2>
+              <button type="button" class={btn} onClick={() => setSelected(null)} aria-label="Close">✕</button>
+            </div>
+            {entry ? (
+              <p class="text-sm">
+                {STATUS_LABEL[entry.status]}
+                {entry.years?.length ? ` · ${entry.years.join(", ")}` : ""}
+                {entry.note ? ` · ${entry.note}` : ""}
+              </p>
+            ) : (
+              <p class="text-sm">Not yet!</p>
+            )}
+          </section>
+        )}
+      </div>
+      <div class={cn(container, "space-y-6")}>
+        {range && <TimelineSlider min={range[0]} max={range[1]} value={year} onChange={setYear} />}
+        <StatsStrip data={shown} />
+        <div class="flex flex-wrap gap-2">
+          <button type="button" class={btn} onClick={startOwn}>Start my own map from this</button>
+          <a class={btn} href="/projects/map">Make my own map</a>
+        </div>
+      </div>
+    </div>
+  );
+}

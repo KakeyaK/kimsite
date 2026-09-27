@@ -1,0 +1,185 @@
+import { useEffect, useMemo, useRef, useState } from "preact/hooks";
+import { emptyData, type City, type CountryEntry, type ISO3, type TravelData } from "@lib/map/data";
+import { createStore } from "@lib/map/storage";
+import { statusColors } from "@lib/map/stats";
+import { addCity, cityId, customCityId } from "@lib/map/cities";
+import type { Place } from "@lib/map/places";
+import { useMapView } from "./useMapView";
+import { CountryPanel } from "./CountryPanel";
+import { PlaceSearch } from "./PlaceSearch";
+import { CityList } from "./CityList";
+import { StatsStrip } from "./StatsStrip";
+import { ImportExport } from "./ImportExport";
+import { InviteBuilder } from "./InviteBuilder";
+import { MAX_STOPS } from "@lib/map/invite";
+import { cn } from "@lib/utils";
+import { btn, btnActive, container, mapBox, overlay } from "./ui";
+
+export default function TravelMap() {
+  const store = useMemo(() => createStore(), []);
+  const [data, setData] = useState<TravelData>(() => store.load());
+  const [selected, setSelected] = useState<ISO3 | null>(null);
+  const { ref, view, error } = useMapView();
+
+  function update(next: TravelData) {
+    setData(next);
+    store.save(next);
+  }
+
+  function setCountry(iso: ISO3, entry: CountryEntry | null) {
+    const countries = { ...data.countries };
+    if (entry) countries[iso] = entry;
+    else delete countries[iso];
+    update({ ...data, countries });
+  }
+
+  const [pinFor, setPinFor] = useState<ISO3 | null>(null);
+  /** Trip stops while the planner is open; null when it's closed. */
+  const [planning, setPlanning] = useState<ISO3[] | null>(null);
+  const plannerRef = useRef<HTMLDivElement>(null);
+  const pinForRef = useRef<ISO3 | null>(null);
+  pinForRef.current = pinFor;
+
+  function upsertCity(city: City) {
+    update({ ...data, cities: data.cities.map((c) => (c.id === city.id ? city : c)) });
+  }
+
+  /** Search result: a country just opens its panel; a city is added as "been" (its country too, if new). */
+  function pickPlace(place: Place) {
+    if (place.kind === "city") {
+      const { name, iso, lat, lon } = place;
+      const cities = addCity(data.cities, { id: cityId(iso, name, lat, lon), name, country: iso, lat, lon, status: "visited" });
+      const countries = data.countries[iso] ? data.countries : { ...data.countries, [iso]: { status: "visited" as const } };
+      update({ ...data, countries, cities });
+    }
+    setSelected(place.iso);
+  }
+  function removeCity(id: string) {
+    update({ ...data, cities: data.cities.filter((c) => c.id !== id) });
+  }
+
+  useEffect(() => {
+    void view?.setCountryColors(statusColors(data));
+  }, [view, data]);
+
+  useEffect(() => {
+    void view?.setPins(data.cities);
+  }, [view, data.cities]);
+
+  useEffect(
+    () => (view ? view.onCountryClick((iso) => { if (!pinForRef.current) setSelected(iso); }) : undefined),
+    [view],
+  );
+
+  useEffect(() => {
+    if (!view) return;
+    return view.onMapClick(({ lat, lon }) => {
+      const iso = pinForRef.current;
+      if (!iso) return;
+      setPinFor(null);
+      const name = window.prompt("Name this place", "My spot")?.trim();
+      if (!name) return;
+      // Functional update: this handler is registered once and would otherwise see stale `data`.
+      setData((current) => {
+        const next = {
+          ...current,
+          cities: [
+            ...current.cities,
+            { id: customCityId(), name: name.slice(0, 200), country: iso, lat, lon, status: "visited" as const, custom: true },
+          ],
+        };
+        store.save(next);
+        return next;
+      });
+    });
+  }, [view]);
+
+  useEffect(() => {
+    const el = ref.current;
+    if (!selected || !view || !el) return;
+    // Keep the country clear of the panel: left column on wide screens, bottom sheet on phones.
+    const wide = el.clientWidth >= 768;
+    const padding = wide
+      ? { top: 64, right: 48, bottom: 48, left: 368 }
+      : { top: 72, right: 24, bottom: Math.round(el.clientHeight * 0.55) + 16, left: 24 };
+    view.flyToCountry(selected, { padding });
+  }, [view, selected]);
+
+  /** The one "Plan a trip" entry point: starts with the selected country, or adds it to an open plan. */
+  function planTrip() {
+    setPlanning((stops) => {
+      if (!stops) return selected ? [selected] : [];
+      return selected && !stops.includes(selected) && stops.length < MAX_STOPS ? [...stops, selected] : stops;
+    });
+    requestAnimationFrame(() => plannerRef.current?.scrollIntoView({ behavior: "smooth", block: "start" }));
+  }
+
+  return (
+    <div class="space-y-6">
+      {!store.isPersistent() && (
+        <p role="status" class={cn(container, "text-sm")}>
+          <span class="block rounded border border-amber-500/40 bg-amber-500/10 p-3">
+            Your browser is blocking storage, so changes here won't be saved after you leave. Use Export to keep a copy.
+          </span>
+        </p>
+      )}
+
+      <div class="relative">
+        {error ? <p class={cn(container, "py-8")}>{error}</p> : <div ref={ref} class={mapBox} />}
+
+        <div class="absolute inset-x-3 top-3 z-10 flex gap-2 md:left-auto md:w-[26rem]">
+          <PlaceSearch cities class="flex-1 shadow-lg" label="Search places" placeholder="Search a place…" onPick={pickPlace} />
+          <button type="button" class={cn(btn, overlay, "shrink-0 text-black dark:text-white")} onClick={planTrip}>
+            ✈️ Plan a trip
+          </button>
+        </div>
+
+        {selected ? (
+          <div class="absolute inset-x-3 bottom-3 z-10 max-h-[55%] overflow-y-auto rounded-lg md:inset-x-auto md:bottom-auto md:left-3 md:top-3 md:max-h-[calc(100%-1.5rem)] md:w-80">
+            <CountryPanel
+              iso={selected}
+              entry={data.countries[selected]}
+              onChange={(e) => setCountry(selected, e)}
+              onClose={() => { setSelected(null); setPinFor(null); }}
+            >
+              <CityList
+                cities={data.cities.filter((c) => c.country === selected)}
+                onChange={upsertCity}
+                onRemove={removeCity}
+              />
+              <p class="text-xs">Add cities with the search box, or:</p>
+              <button
+                type="button"
+                class={cn(btn, pinFor === selected && btnActive)}
+                aria-pressed={pinFor === selected}
+                onClick={() => setPinFor(pinFor === selected ? null : selected)}
+              >
+                {pinFor === selected ? "Click the map to drop the pin… (cancel)" : "📍 Drop a custom pin"}
+              </button>
+            </CountryPanel>
+          </div>
+        ) : (
+          !error && (
+            <p class={cn(overlay, "pointer-events-none absolute bottom-3 left-3 z-10 px-3 py-1.5 text-sm")}>
+              Click a country, or search a place, to mark it.
+            </p>
+          )
+        )}
+      </div>
+
+      <div class={cn(container, "space-y-10")}>
+        {planning && (
+          <div ref={plannerRef} class="scroll-mt-24">
+            <InviteBuilder
+              stops={planning}
+              onStopsChange={setPlanning}
+              onClose={() => setPlanning(null)}
+            />
+          </div>
+        )}
+        <StatsStrip data={data} />
+        <ImportExport data={data} onImport={update} onClear={() => { store.clear(); setData(emptyData()); }} />
+      </div>
+    </div>
+  );
+}

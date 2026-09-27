@@ -1,0 +1,25 @@
+---
+import PageLayout from "@layouts/PageLayout.astro";
+import KimMap from "@components/map/KimMap";
+import raw from "@data/travel.json";
+import { dropUnknown, migrate, travelDataSchema } from "@lib/map/data";
+import { KNOWN_ISO } from "@lib/map/meta";
+
+const parsed = travelDataSchema.safeParse(migrate(raw));
+if (!parsed.success) {
+  throw new Error(`src/data/travel.json is invalid:\n${parsed.error.issues.map((i) => `${i.path.join(".")}: ${i.message}`).join("\n")}`);
+}
+const { data, unknown } = dropUnknown(parsed.data, KNOWN_ISO);
+if (unknown.length) console.warn(`travel.json: ignoring unknown country codes ${unknown.join(", ")}`);
+---
+
+<PageLayout title="Kim's travel map" description="Where I've been, lived, and want to go.">
+  <div class="animate mx-auto mb-6 max-w-screen-lg space-y-1 px-5">
+    <h1 class="text-2xl font-semibold text-black dark:text-white">Where I've been</h1>
+    <p class="text-sm">Drag the timeline to watch the map fill in. <a class="underline underline-offset-2" href="/projects/map">Make your own map</a>.</p>
+  </div>
+  <!-- Outside the content column: the map spans the full page width. -->
+  <KimMap client:only="preact" data={data}>
+    <p slot="fallback" class="mx-auto max-w-screen-lg px-5 text-sm">Loading map…</p>
+  </KimMap>
+</PageLayout>

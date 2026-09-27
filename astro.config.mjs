@@ -4,6 +4,8 @@ import sitemap from "@astrojs/sitemap";
 import tailwind from "@astrojs/tailwind";
 import { visit } from "unist-util-visit";
 
+import preact from "@astrojs/preact";
+
 // Open external links in a new tab (with safe rel attributes).
 // A link is "external" when it points to another site: an absolute http(s)
 // URL or a protocol-relative `//host` one. Internal links (/, #, ./relative)
@@ -23,7 +25,7 @@ function rehypeExternalLinks() {
 
 export default defineConfig({
   site: "https://www.kakeya.kim/",
-  integrations: [mdx(), sitemap(), tailwind()],
+  integrations: [mdx(), sitemap(), tailwind(), preact()],
   markdown: {
     rehypePlugins: [rehypeExternalLinks],
   },
