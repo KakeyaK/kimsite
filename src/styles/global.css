@@ -63,14 +63,6 @@ article {
   @apply opacity-100 translate-y-0;
 }
 
-html #back-to-top {
-  @apply opacity-0 pointer-events-none;
-}
-
-html.scrolled #back-to-top {
-  @apply opacity-100 pointer-events-auto;
-}
-
 /* Travel map colors (read by src/lib/map/mapView.ts; keep hex, MapLibre parses it directly) */
 :root {
   --map-ocean: #e7e5e4;

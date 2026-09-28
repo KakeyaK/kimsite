@@ -11,7 +11,7 @@ import {
   isBlogFolderEntry,
   isBlogPostEntry,
 } from "@lib/blogEntries";
-import { BLOG } from "@consts";
+import { SITE, BLOG } from "@consts";
 
 const entries = (await getCollection("blog")).filter(
   (post) => !post.data.draft,
@@ -36,6 +36,7 @@ const posts = entries.filter(isBlogPostEntry);
 const datedPosts = posts.sort(
   (a, b) => b.data.date.valueOf() - a.data.date.valueOf(),
 );
+const latestPosts = datedPosts.slice(0, SITE.NUM_LATEST_POSTS);
 
 // top-level folders and top-level posts
 const folderSet = new Set<string>();
@@ -74,6 +75,21 @@ const years = Object.keys(postsByYear).sort(
   <Container>
     <div class="space-y-8">
       <div class="animate font-semibold text-black dark:text-white">Blog</div>
+
+      {
+        latestPosts.length > 0 && (
+          <section class="animate space-y-4">
+            <div class="text-sm font-semibold">Latest posts</div>
+            <ul class="flex flex-col gap-4">
+              {latestPosts.map((post) => (
+                <li>
+                  <ArrowCard entry={post} />
+                </li>
+              ))}
+            </ul>
+          </section>
+        )
+      }
 
       {
         folders.length > 0 && (

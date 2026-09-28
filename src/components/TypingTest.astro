@@ -1,0 +1,270 @@
+---
+type Props = {
+  title: string;
+  text: string;
+};
+
+const { title } = Astro.props;
+const text = Astro.props.text.replace(/\r\n?/g, "\n");
+const chars = [...text];
+---
+
+<section
+  id="typing-test"
+  data-text={text}
+  class="relative flex flex-1 flex-col justify-center"
+>
+  <div
+    id="typing-wpm"
+    aria-hidden="true"
+    class="pointer-events-none absolute inset-0 flex select-none items-center justify-center text-[8rem] font-semibold leading-none text-black/5 opacity-0 transition-opacity duration-300 dark:text-white/5 sm:text-[12rem]"
+  >
+  </div>
+
+  <div class="relative">
+    <h1 class="animate relative text-3xl font-semibold text-black dark:text-white">
+      {title}
+    </h1>
+
+    <p class="sr-only">{text}</p>
+    <p
+      id="typing-text"
+      aria-hidden="true"
+      class="animate relative mt-4 cursor-text font-serif leading-7"
+    >
+      {
+        chars.map((char) =>
+          char === "\n" ? (
+            <>
+              <span class="char">&nbsp;</span>
+              <br />
+            </>
+          ) : (
+            <span class="char">{char}</span>
+          ),
+        )
+      }
+    </p>
+
+    <textarea
+      id="typing-input"
+      class="sr-only"
+      aria-label="Type the text above to test your typing speed"
+      autocomplete="off"
+      autocapitalize="off"
+      spellcheck="false"
+      maxlength={chars.length}
+    ></textarea>
+
+    <!-- Out of the flow so it does not shift the centered text -->
+    <div class="absolute left-0 top-full mt-4 flex items-center gap-4 text-sm">
+      <span id="typing-result" aria-live="polite" class="empty:hidden"></span>
+      <button
+        id="typing-retry"
+        type="button"
+        hidden
+        class="rounded-full border border-black/15 px-3 py-1 transition-colors duration-300 ease-in-out hover:bg-black/5 hover:text-black focus-visible:bg-black/5 focus-visible:text-black focus-visible:outline-none dark:border-white/20 dark:hover:bg-white/10 dark:hover:text-white dark:focus-visible:bg-white/10 dark:focus-visible:text-white"
+      >
+        retry
+      </button>
+    </div>
+  </div>
+</section>
+
+<style>
+  #typing-test {
+    --untyped: rgb(0 0 0 / 0.45);
+    --typed: rgb(0 0 0 / 0.85);
+    --wrong: rgb(220 38 38);
+    --caret: rgb(0 0 0 / 0.8);
+  }
+
+  :global(.dark) #typing-test {
+    --untyped: rgb(255 255 255 / 0.5);
+    --typed: rgb(255 255 255 / 0.95);
+    --wrong: rgb(248 113 113);
+    --caret: rgb(255 255 255 / 0.8);
+  }
+
+  .char {
+    color: var(--untyped);
+  }
+
+  .char.correct {
+    color: var(--typed);
+  }
+
+  .char.incorrect {
+    color: var(--wrong);
+    background-color: rgb(220 38 38 / 0.15);
+  }
+
+  .focused .char.caret {
+    box-shadow: inset 2px 0 0 0 var(--caret);
+  }
+
+  .focused .char.caret-end {
+    box-shadow: inset -2px 0 0 0 var(--caret);
+  }
+
+  @media (prefers-reduced-motion: no-preference) {
+    .focused .char.caret,
+    .focused .char.caret-end {
+      animation: typing-caret-blink 1s step-end infinite;
+    }
+  }
+
+  @keyframes typing-caret-blink {
+    50% {
+      box-shadow: none;
+    }
+  }
+</style>
+
+<script>
+  import {
+    accuracyPercent,
+    countCorrect,
+    countNewKeystrokes,
+    isCorrectChar,
+    wordsPerMinute,
+  } from "@lib/typingStats";
+
+  let controller: AbortController | undefined;
+  let timer: number | undefined;
+
+  function setup() {
+    controller?.abort();
+    window.clearInterval(timer);
+
+    const root = document.getElementById("typing-test");
+    const textEl = document.getElementById("typing-text");
+    const input = document.getElementById("typing-input") as HTMLTextAreaElement;
+    const wpmEl = document.getElementById("typing-wpm");
+    const resultEl = document.getElementById("typing-result");
+    const retry = document.getElementById("typing-retry") as HTMLButtonElement;
+    if (!root || !textEl || !input || !wpmEl || !resultEl || !retry) return;
+
+    controller = new AbortController();
+    const { signal } = controller;
+
+    const spans = [...textEl.querySelectorAll<HTMLSpanElement>(".char")];
+    const target = root.dataset.text ?? "";
+
+    let typed = "";
+    let startTime: number | null = null;
+    let finished = false;
+    let keystrokes = 0;
+    let mistakes = 0;
+
+    const currentWpm = () =>
+      startTime === null
+        ? 0
+        : wordsPerMinute(countCorrect(typed, target), performance.now() - startTime);
+
+    const render = () => {
+      spans.forEach((span, i) => {
+        const char = typed[i];
+        const correct = char !== undefined && isCorrectChar(char, target[i]);
+        span.classList.toggle("correct", correct);
+        span.classList.toggle("incorrect", char !== undefined && !correct);
+        span.classList.toggle("caret", i === typed.length);
+      });
+      spans.at(-1)?.classList.toggle("caret-end", typed.length === spans.length);
+    };
+
+    const updateWpm = () => {
+      // Too few characters in the first second give meaningless spikes
+      if (startTime === null || performance.now() - startTime < 1000) return;
+      wpmEl.textContent = String(currentWpm());
+    };
+
+    const start = () => {
+      startTime = performance.now();
+      retry.hidden = false;
+      wpmEl.classList.remove("opacity-0");
+      updateWpm();
+      timer = window.setInterval(updateWpm, 250);
+    };
+
+    const finish = () => {
+      finished = true;
+      window.clearInterval(timer);
+      const wpm = currentWpm();
+      wpmEl.textContent = String(wpm);
+      resultEl.textContent = `${wpm} wpm · ${accuracyPercent(keystrokes, mistakes)}% acc`;
+      input.readOnly = true;
+    };
+
+    const restart = () => {
+      window.clearInterval(timer);
+      typed = "";
+      startTime = null;
+      finished = false;
+      keystrokes = 0;
+      mistakes = 0;
+      input.value = "";
+      input.readOnly = false;
+      wpmEl.classList.add("opacity-0");
+      wpmEl.textContent = "";
+      resultEl.textContent = "";
+      retry.hidden = true;
+      render();
+      input.focus({ preventScroll: true });
+    };
+
+    input.addEventListener(
+      "input",
+      () => {
+        if (finished) return;
+        const added = countNewKeystrokes(typed, input.value, target);
+        keystrokes += added.keystrokes;
+        mistakes += added.mistakes;
+
+        typed = input.value;
+        if (startTime === null && typed.length > 0) start();
+        render();
+        if (typed.length === target.length) finish();
+      },
+      { signal },
+    );
+
+    input.addEventListener("paste", (e) => e.preventDefault(), { signal });
+    input.addEventListener("focus", () => root.classList.add("focused"), { signal });
+    input.addEventListener("blur", () => root.classList.remove("focused"), { signal });
+    textEl.addEventListener("click", () => input.focus({ preventScroll: true }), {
+      signal,
+    });
+    retry.addEventListener("click", restart, { signal });
+
+    // Typing anywhere on the page sends keys to the test
+    document.addEventListener(
+      "keydown",
+      (e) => {
+        const active = document.activeElement;
+        if (active === input) return;
+        if (e.key.length !== 1 || e.ctrlKey || e.metaKey || e.altKey) return;
+        if (
+          active instanceof HTMLInputElement ||
+          active instanceof HTMLTextAreaElement ||
+          (active instanceof HTMLElement && active.isContentEditable)
+        ) {
+          return;
+        }
+        if (
+          e.key === " " &&
+          (active instanceof HTMLButtonElement || active instanceof HTMLAnchorElement)
+        ) {
+          return;
+        }
+        input.focus({ preventScroll: true });
+      },
+      { signal },
+    );
+
+    render();
+    input.focus({ preventScroll: true });
+  }
+
+  document.addEventListener("astro:page-load", setup);
+</script>
