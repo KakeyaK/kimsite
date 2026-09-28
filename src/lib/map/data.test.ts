@@ -1,10 +1,10 @@
 import { describe, it, expect } from "vitest";
 import {
-  travelDataSchema, emptyData, migrate, dropUnknown, isHttpsUrl, addWants, type TravelData,
+  travelDataSchema, emptyData, dropUnknown, isHttpsUrl, setRegion, type TravelData,
 } from "./data";
 
 const sample: TravelData = {
-  version: 1,
+  version: 1, regions: {},
   countries: {
     JPN: { status: "visited", years: [2019, 2023], note: "Ramen" },
     BRA: { status: "lived" },
@@ -44,32 +44,17 @@ describe("travelDataSchema", () => {
   });
 });
 
-describe("migrate", () => {
-  it("adds version 1 to an object without a version", () => {
-    const { version: _v, ...old } = sample;
-    const migrated = migrate(old);
-    expect(travelDataSchema.safeParse(migrated).success).toBe(true);
-  });
-  it("adds a missing cities array", () => {
-    expect(travelDataSchema.safeParse(migrate({ countries: {} })).success).toBe(true);
-  });
-  it("leaves non-objects alone", () => {
-    expect(migrate("nope")).toBe("nope");
-    expect(migrate(null)).toBe(null);
-  });
-});
-
 describe("dropUnknown", () => {
   it("removes countries and cities with unknown ids and reports them once", () => {
     const data: TravelData = {
-      version: 1,
+      version: 1, regions: {},
       countries: { JPN: { status: "visited" }, XXX: { status: "want" } },
       cities: [
         { id: "a", name: "A", country: "XXX", lat: 0, lon: 0, status: "want" },
         { id: "b", name: "B", country: "JPN", lat: 0, lon: 0, status: "want" },
       ],
     };
-    const { data: out, unknown } = dropUnknown(data, new Set(["JPN"]));
+    const { data: out, unknown } = dropUnknown(data, { countries: new Set(["JPN"]), regions: new Set() });
     expect(Object.keys(out.countries)).toEqual(["JPN"]);
     expect(out.cities.map((c) => c.id)).toEqual(["b"]);
     expect(unknown).toEqual(["XXX"]);
@@ -100,33 +85,49 @@ describe("parseYears", () => {
   });
 });
 
-describe("addWants", () => {
-  it("adds new countries as 'want' and reports which were added", () => {
-    const start: TravelData = { version: 1, countries: { JPN: { status: "visited", years: [2019] } }, cities: [] };
-    const { data: out, added } = addWants(start, ["JPN", "KOR", "VNM"]);
-    expect(out.countries.JPN).toEqual({ status: "visited", years: [2019] }); // never downgrades a place you've been
-    expect(out.countries.KOR).toEqual({ status: "want" });
-    expect(out.countries.VNM).toEqual({ status: "want" });
-    expect(added).toEqual(["KOR", "VNM"]);
+describe("regions in the data model", () => {
+  it("requires a regions record keyed by ISO 3166-2 codes", () => {
+    expect(travelDataSchema.safeParse({ ...sample, regions: { "BR-SP": { status: "visited" } } }).success).toBe(true);
+    expect(travelDataSchema.safeParse({ ...sample, regions: { SP: { status: "visited" } } }).success).toBe(false);
+    expect(travelDataSchema.safeParse({ ...sample, regions: { "br-sp": { status: "visited" } } }).success).toBe(false);
+    const { regions: _regions, ...withoutRegions } = sample;
+    expect(travelDataSchema.safeParse(withoutRegions).success).toBe(false);
   });
-  it("records the trip year and who you'd travel with", () => {
-    const start: TravelData = { version: 1, countries: { JPN: { status: "visited" } }, cities: [] };
-    const { data: out } = addWants(start, ["JPN", "KOR"], { year: 2027, note: "Travel with Ana" });
-    expect(out.countries.KOR).toEqual({ status: "want", years: [2027], note: "Travel with Ana" });
-    expect(out.countries.JPN).toEqual({ status: "visited" });
+
+  it("dropUnknown drops unknown regions and reports them", () => {
+    const data: TravelData = { ...emptyData(), regions: { "BR-SP": { status: "visited" }, "BR-XX": { status: "want" } } };
+    const { data: out, unknown } = dropUnknown(data, { countries: new Set(), regions: new Set(["BR-SP"]) });
+    expect(Object.keys(out.regions)).toEqual(["BR-SP"]);
+    expect(unknown).toEqual(["BR-XX"]);
   });
-  it("merges the year and note into a country already on the want list", () => {
-    const start: TravelData = { version: 1, countries: { KOR: { status: "want", years: [2030], note: "kimchi" } }, cities: [] };
-    const { data: out, added } = addWants(start, ["KOR"], { year: 2027, note: "Travel with Ana" });
-    expect(out.countries.KOR).toEqual({ status: "want", years: [2027, 2030], note: "kimchi\nTravel with Ana" });
-    expect(added).toEqual(["KOR"]);
-    // adding the same invite again changes nothing
-    expect(addWants(out, ["KOR"], { year: 2027, note: "Travel with Ana" }).data).toBe(out);
+});
+
+describe("setRegion", () => {
+  it("marking a state visited marks its country visited", () => {
+    const out = setRegion(emptyData(), "BR-SP", { status: "visited", years: [2020] });
+    expect(out.regions["BR-SP"]).toEqual({ status: "visited", years: [2020] });
+    expect(out.countries.BRA).toEqual({ status: "visited" });
   });
-  it("leaves existing wants alone and returns the same object when nothing changes", () => {
-    const start: TravelData = { version: 1, countries: { KOR: { status: "want", note: "kimchi" } }, cities: [] };
-    const r = addWants(start, ["KOR"]);
-    expect(r.added).toEqual([]);
-    expect(r.data).toBe(start);
+  it("raises a country that was only 'want' to visited, keeping its years and note", () => {
+    const start: TravelData = { ...emptyData(), countries: { BRA: { status: "want", note: "carnival" } } };
+    expect(setRegion(start, "BR-BA", { status: "visited" }).countries.BRA).toEqual({ status: "visited", note: "carnival" });
+  });
+  it("marking a state lived makes the country lived", () => {
+    const start: TravelData = { ...emptyData(), countries: { BRA: { status: "visited", years: [2019] } } };
+    expect(setRegion(start, "BR-SP", { status: "lived" }).countries.BRA).toEqual({ status: "lived", years: [2019] });
+  });
+  it("never lowers the country", () => {
+    const start: TravelData = { ...emptyData(), countries: { BRA: { status: "lived" } } };
+    expect(setRegion(start, "BR-SP", { status: "visited" }).countries.BRA).toEqual({ status: "lived" });
+    expect(setRegion(start, "BR-SP", { status: "want" }).countries.BRA).toEqual({ status: "lived" });
+  });
+  it("a 'want' state puts an unmarked country on the want list", () => {
+    expect(setRegion(emptyData(), "BR-BA", { status: "want" }).countries.BRA).toEqual({ status: "want" });
+  });
+  it("clearing a state leaves the country as it is", () => {
+    const start = setRegion(emptyData(), "BR-SP", { status: "visited" });
+    const out = setRegion(start, "BR-SP", null);
+    expect(out.regions).toEqual({});
+    expect(out.countries.BRA).toEqual({ status: "visited" });
   });
 });

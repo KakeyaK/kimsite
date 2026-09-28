@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { searchPlaces } from "./places";
+import { placeToStop, searchPlaces } from "./places";
 import type { CityRow } from "./cities";
 
 const cities: CityRow[] = [
@@ -25,5 +25,18 @@ describe("searchPlaces", () => {
   it("respects the limit and returns nothing for a blank query", () => {
     expect(searchPlaces("a", cities, 5)).toHaveLength(5);
     expect(searchPlaces(" ", cities)).toEqual([]);
+  });
+  it("finds states between countries and cities", () => {
+    const r = searchPlaces("bahia", [["Bahía Blanca", "ARG", -38.7, -62.3, 300_000]]);
+    expect(r.map((p) => p.kind)).toEqual(["region", "city"]);
+    expect(r[0]).toEqual({ kind: "region", code: "BR-BA", iso: "BRA", name: "Bahia" });
+  });
+});
+
+describe("placeToStop", () => {
+  it("turns search results into trip stops", () => {
+    expect(placeToStop({ kind: "country", iso: "JPN", name: "Japan" })).toBe("JPN");
+    expect(placeToStop({ kind: "region", code: "BR-BA", iso: "BRA", name: "Bahia" })).toBe("BR-BA");
+    expect(placeToStop({ kind: "city", iso: "JPN", name: "Kyoto", lat: 35.01, lon: 135.77 })).toEqual({ n: "Kyoto", c: "JPN", la: 35.01, lo: 135.77 });
   });
 });

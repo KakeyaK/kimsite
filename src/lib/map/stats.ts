@@ -1,4 +1,5 @@
-import { STATUSES, type ISO3, type Status, type TravelData } from "./data";
+import { STATUSES, type CountryEntry, type ISO3, type Status, type TravelData } from "./data";
+import { regionsOf } from "./meta";
 import type { BBox } from "./geo";
 
 export const TOTAL_COUNTRIES = 195;
@@ -64,12 +65,22 @@ export function yearRange(d: TravelData): [number, number] | null {
 
 /** The map as it looked at the end of `year`: places first reached by then. Wishes and undated places are left out. */
 export function atYear(d: TravelData, year: number): TravelData {
-  const countries: TravelData["countries"] = {};
-  for (const [iso, e] of Object.entries(d.countries)) {
-    if (e.status !== "want" && e.years?.length && Math.min(...e.years) <= year) countries[iso] = e;
-  }
+  const reachedBy = (entries: Record<string, CountryEntry>) =>
+    Object.fromEntries(
+      Object.entries(entries).filter(([, e]) => e.status !== "want" && e.years?.length && Math.min(...e.years) <= year),
+    );
   const cities = d.cities.filter((c) => c.status === "visited" && c.year !== undefined && c.year <= year);
-  return { version: 1, countries, cities };
+  return { version: 1, countries: reachedBy(d.countries), regions: reachedBy(d.regions), cities };
+}
+
+/** How many of a country's states you've been to (visited or lived). */
+export function regionProgress(d: TravelData, iso: ISO3): { been: number; total: number } {
+  const states = regionsOf(iso);
+  return { been: states.filter((r) => d.regions[r.code] && d.regions[r.code].status !== "want").length, total: states.length };
+}
+
+export function regionColors(d: TravelData): Record<string, ColorKey> {
+  return Object.fromEntries(Object.entries(d.regions).map(([code, e]) => [code, e.status]));
 }
 
 export function statusColors(d: TravelData): Record<ISO3, ColorKey> {

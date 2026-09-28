@@ -5,7 +5,8 @@ import {
   MAX_MESSAGE, type Invite,
 } from "./invite";
 
-const known = new Set(["JPN", "KOR", "BRA", "PRT"]);
+const known = { countries: new Set(["JPN", "KOR", "BRA", "PRT"]), regions: new Set(["BR-BA"]) };
+const kyoto = { n: "Kyoto", c: "JPN", la: 35.01, lo: 135.77 };
 const base: Invite = { v: 1, from: "Kim", stops: ["JPN"], message: "Let's go!", date: "2027-04-01" };
 const raw = (obj: unknown) => LZString.compressToEncodedURIComponent(JSON.stringify(obj));
 
@@ -27,8 +28,8 @@ describe("invite round-trip", () => {
     expect(decodeInvite(encodeInvite(inv), known)?.value).toEqual(inv);
   });
 
-  it("round-trips multiple stops", () => {
-    const inv = { ...base, stops: ["JPN", "KOR", "BRA"] };
+  it("round-trips countries, states and cities as stops", () => {
+    const inv: Invite = { ...base, stops: [kyoto, "KOR", "BR-BA"] };
     expect(decodeInvite(encodeInvite(inv), known)?.value).toEqual(inv);
   });
 
@@ -47,6 +48,10 @@ describe("decodeInvite rejects bad input", () => {
     ["stops not an array", raw({ ...base, stops: "JPN" })],
     ["message too long", raw({ ...base, message: "x".repeat(MAX_MESSAGE + 1) })],
     ["bad date", raw({ ...base, date: "next spring" })],
+    ["end before start", raw({ ...base, date: "2027-04-10", end: "2027-04-01" })],
+    ["end without a start", raw({ ...base, date: undefined, end: "2027-04-01" })],
+    ["bad email", raw({ ...base, email: "kim at example" })],
+    ["city with a bad latitude", raw({ ...base, stops: [{ ...kyoto, la: 95 }] })],
   ])("%s → null", (_label, input) => {
     expect(decodeInvite(input, known)).toBeNull();
   });
@@ -57,20 +62,10 @@ describe("decodeInvite rejects bad input", () => {
 });
 
 describe("decodeInvite sanitizes", () => {
-  it("drops unknown stops and reports them", () => {
-    const r = decodeInvite(raw({ ...base, stops: ["JPN", "ZZZ"] }), known);
+  it("drops unknown countries, states and cities in unknown countries, and reports them", () => {
+    const r = decodeInvite(raw({ ...base, stops: ["JPN", "ZZZ", "BR-XX", { ...kyoto, c: "YYY" }] }), known);
     expect(r?.value.stops).toEqual(["JPN"]);
-    expect(r?.unknown).toEqual(["ZZZ"]);
-  });
-
-  it("drops the removed visited field (compare mode was removed)", () => {
-    const r = decodeInvite(raw({ ...base, visited: ["BRA"] }), known);
-    expect(r?.value).toEqual(base);
-  });
-
-  it("drops the removed images field (images now live in the Markdown message)", () => {
-    const r = decodeInvite(raw({ ...base, images: ["https://example.com/a.jpg"] }), known);
-    expect(r?.value).toEqual(base);
+    expect(r?.unknown).toEqual(["ZZZ", "BR-XX", "YYY"]);
   });
 });
 
@@ -99,5 +94,16 @@ describe("links mangled by chat apps", () => {
     expect(encoded).toMatch(/[$+]/);
     const mangled = encoded.replace(/\$/g, "%24").replace(/\+/g, "%2B");
     expect(decodeInvite(mangled, known)?.value).toEqual(inv);
+  });
+});
+
+describe("trip dates and email", () => {
+  it("round-trips a date range and the inviter's email", () => {
+    const inv: Invite = { ...base, date: "2027-04-10", end: "2027-04-18", email: "kim@example.com" };
+    expect(decodeInvite(encodeInvite(inv), known)?.value).toEqual(inv);
+  });
+  it("accepts a one-day trip (end equal to start)", () => {
+    const inv: Invite = { ...base, date: "2027-04-10", end: "2027-04-10" };
+    expect(decodeInvite(encodeInvite(inv), known)?.value).toEqual(inv);
   });
 });

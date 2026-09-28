@@ -8,7 +8,11 @@ import mapshaper from "mapshaper";
 
 const NE_URL =
   "https://raw.githubusercontent.com/nvkelso/natural-earth-vector/master/geojson/ne_50m_admin_0_countries.geojson";
+const NE_ADMIN1_URL =
+  "https://raw.githubusercontent.com/nvkelso/natural-earth-vector/master/geojson/ne_50m_admin_1_states_provinces.geojson";
 const GEONAMES_URL = "https://download.geonames.org/export/dump/cities15000.zip";
+/** Countries whose states/provinces are tracked. The 50m admin-1 file also covers USA, CAN, AUS, CHN, IND, IDN, RUS, ZAF. */
+const REGION_COUNTRIES = ["BRA"];
 const MIN_POP = 100_000;
 
 const tmp = mkdtempSync(join(tmpdir(), "geodata-"));
@@ -89,4 +93,23 @@ for (const line of tsv.split("\n")) {
 cities.sort((a, b) => b[4] - a[4]);
 writeFileSync("public/map/cities.json", JSON.stringify(cities));
 
-console.log(`countries: ${meta.length}, cities: ${cities.length} (skipped ${unmapped} with unmapped country codes)`);
+// 4. Regions (states): shapes for the map, plus a small meta list with bboxes.
+const admin1File = join(tmp, "admin1.geojson");
+await download(NE_ADMIN1_URL, admin1File);
+await mapshaper.runCommands(
+  `-i ${admin1File} -filter '${JSON.stringify(REGION_COUNTRIES)}.includes(adm0_a3)' ` +
+    `-each 'code=iso_3166_2, country=adm0_a3' -filter-fields code,name,country -simplify 15% keep-shapes ` +
+    `-o public/map/regions.geojson format=geojson precision=0.001`,
+);
+const regionShapes = JSON.parse(readFileSync("public/map/regions.geojson", "utf8"));
+const regions = regionShapes.features
+  .map((f) => {
+    const box = polygons(f.geometry).map(bboxOf).sort((a, b) => area(b) - area(a))[0];
+    return { code: f.properties.code, name: f.properties.name, country: f.properties.country, bbox: box.map(round) };
+  })
+  .sort((a, b) => a.name.localeCompare(b.name));
+writeFileSync("src/lib/map/regions.json", JSON.stringify(regions));
+
+console.log(
+  `countries: ${meta.length}, cities: ${cities.length} (skipped ${unmapped} with unmapped country codes), regions: ${regions.length}`,
+);

@@ -20,7 +20,11 @@ export function Postcard({ invite, editing = false }: { invite: Invite; editing?
   // <article> picks up the site's prose styles (global.css), which style the Markdown.
   return (
     <article class={cn(card, "space-y-3 bg-white/60 dark:bg-black/20 [&_img]:max-h-96 [&_img]:rounded-md [&>div>:first-child]:mt-0 [&>div>:last-child]:mb-0")}>
-      {when && <p class="not-prose text-sm font-semibold text-black dark:text-white">🗓 {invite.date} · {when}</p>}
+      {when && (
+        <p class="not-prose text-sm font-semibold text-black dark:text-white">
+          🗓 {invite.date}{invite.end && invite.end !== invite.date ? ` → ${invite.end}` : ""} · {when}
+        </p>
+      )}
       {invite.message && <div>{renderMarkdown(invite.message, { editing })}</div>}
       {invite.from && <p class="not-prose text-right text-sm">— {invite.from}</p>}
     </article>

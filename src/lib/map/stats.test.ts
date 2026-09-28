@@ -1,7 +1,7 @@
 import { describe, it, expect } from "vitest";
 import {
   counts, beenTo, countedBeenTo, continentProgress, badges, yearRange, atYear,
-  statusColors, type CountryMeta,
+  statusColors, regionProgress, regionColors, type CountryMeta,
 } from "./stats";
 import type { TravelData } from "./data";
 
@@ -15,7 +15,7 @@ const meta: CountryMeta[] = [
 ];
 
 const d: TravelData = {
-  version: 1,
+  version: 1, regions: {},
   countries: {
     BRA: { status: "lived", years: [2000] },
     ARG: { status: "visited", years: [2015, 2010] },
@@ -57,7 +57,7 @@ describe("continentProgress / badges", () => {
     expect(countedBeenTo(withTerritory, meta)).toEqual(["ARG", "BRA", "JPN"]);
   });
   it("awards milestone badges", () => {
-    const many: TravelData = { version: 1, cities: [], countries: {} };
+    const many: TravelData = { version: 1, regions: {}, cities: [], countries: {} };
     const big: CountryMeta[] = [];
     for (let i = 0; i < 10; i++) {
       const iso = `A${String.fromCharCode(65 + i)}A`;
@@ -73,7 +73,7 @@ describe("timeline", () => {
     expect(yearRange(d)).toEqual([2000, 2023]);
   });
   it("yearRange is null without years", () => {
-    expect(yearRange({ version: 1, countries: { BRA: { status: "visited" } }, cities: [] })).toBeNull();
+    expect(yearRange({ version: 1, regions: {}, countries: { BRA: { status: "visited" } }, cities: [] })).toBeNull();
   });
   it("atYear keeps places first reached on or before the year, never wishes", () => {
     const at = atYear(d, 2012);
@@ -87,5 +87,23 @@ describe("timeline", () => {
 describe("statusColors", () => {
   it("maps each country to its status", () => {
     expect(statusColors(d)).toEqual({ BRA: "lived", ARG: "visited", JPN: "visited", KOR: "want" });
+  });
+});
+
+describe("regions", () => {
+  const withStates: TravelData = {
+    ...d,
+    regions: { "BR-SP": { status: "lived", years: [2000] }, "BR-BA": { status: "visited", years: [2015] }, "BR-AM": { status: "want" } },
+  };
+  it("regionProgress counts been-to states out of all of the country's states", () => {
+    expect(regionProgress(withStates, "BRA")).toEqual({ been: 2, total: 27 });
+    expect(regionProgress(d, "JPN")).toEqual({ been: 0, total: 0 });
+  });
+  it("atYear filters states like countries", () => {
+    expect(Object.keys(atYear(withStates, 2010).regions)).toEqual(["BR-SP"]);
+    expect(Object.keys(atYear(withStates, 2020).regions).sort()).toEqual(["BR-BA", "BR-SP"]);
+  });
+  it("regionColors maps each state to its status", () => {
+    expect(regionColors(withStates)).toEqual({ "BR-SP": "lived", "BR-BA": "visited", "BR-AM": "want" });
   });
 });

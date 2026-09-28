@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { bboxCenter, greatCircle, daysUntil } from "./geo";
+import { alongLine, bboxCenter, greatCircle, daysUntil } from "./geo";
 
 describe("bboxCenter", () => {
   it("returns the middle of the box", () => {
@@ -50,5 +50,27 @@ describe("daysUntil", () => {
   it("returns null for bad dates", () => {
     expect(daysUntil("2026-13-40", now)).toBeNull();
     expect(daysUntil("soon", now)).toBeNull();
+  });
+});
+
+describe("alongLine", () => {
+  const line: [number, number][] = [[0, 0], [0, 10], [10, 10]];
+  it("returns the ends at 0 and 1", () => {
+    expect(alongLine(line, 0).point).toEqual([0, 0]);
+    expect(alongLine(line, 1).point).toEqual([10, 10]);
+  });
+  it("interpolates by length", () => {
+    const { point } = alongLine(line, 0.75); // 3/4 of 20 units = 5 into the second segment
+    expect(point[0]).toBeCloseTo(5);
+    expect(point[1]).toBeCloseTo(10);
+  });
+  it("gives the heading in degrees clockwise from north", () => {
+    expect(alongLine(line, 0.25).bearing).toBeCloseTo(0); // heading north
+    expect(alongLine(line, 0.75).bearing).toBeCloseTo(90, 0); // heading east
+    expect(alongLine([[0, 0], [0, -5]], 0.5).bearing).toBeCloseTo(180);
+  });
+  it("clamps out-of-range fractions", () => {
+    expect(alongLine(line, -1).point).toEqual([0, 0]);
+    expect(alongLine(line, 2).point).toEqual([10, 10]);
   });
 });

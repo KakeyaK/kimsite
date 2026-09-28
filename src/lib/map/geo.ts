@@ -43,3 +43,21 @@ export function daysUntil(date: string, now: Date): number | null {
   const today = Date.UTC(now.getFullYear(), now.getMonth(), now.getDate());
   return Math.round((target.getTime() - today) / 86_400_000);
 }
+
+/**
+ * The point `f` (0–1) of the way along a line, and the heading there in degrees clockwise from
+ * north. Meant for dense lines like `greatCircle` output, so each segment is treated as flat.
+ */
+export function alongLine(line: LonLat[], f: number): { point: LonLat; bearing: number } {
+  const lengths = line.slice(1).map((p, i) => Math.hypot(p[0] - line[i][0], p[1] - line[i][1]));
+  let remaining = Math.min(Math.max(f, 0), 1) * lengths.reduce((a, b) => a + b, 0);
+  let i = 0;
+  while (i < lengths.length - 1 && remaining > lengths[i]) remaining -= lengths[i++];
+  const [a, b] = [line[i], line[i + 1]];
+  const t = lengths[i] ? Math.min(remaining / lengths[i], 1) : 0;
+  const point: LonLat = [a[0] + (b[0] - a[0]) * t, a[1] + (b[1] - a[1]) * t];
+  // East-west degrees shrink with latitude, so scale them before taking the angle.
+  const east = (b[0] - a[0]) * Math.cos(point[1] * RAD);
+  const bearing = (Math.atan2(east, b[1] - a[1]) / RAD + 360) % 360;
+  return { point, bearing };
+}

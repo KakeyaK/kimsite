@@ -1,25 +1,40 @@
 import { useEffect, useMemo, useRef, useState } from "preact/hooks";
-import { emptyData, type City, type CountryEntry, type ISO3, type TravelData } from "@lib/map/data";
+import { emptyData, setRegion, type City, type CountryEntry, type ISO3, type TravelData } from "@lib/map/data";
 import { createStore } from "@lib/map/storage";
-import { statusColors } from "@lib/map/stats";
+import { regionColors, statusColors } from "@lib/map/stats";
 import { addCity, cityId, customCityId } from "@lib/map/cities";
+import { countryName, regionByCode } from "@lib/map/meta";
+import type { PlaceRef } from "@lib/map/mapView";
 import type { Place } from "@lib/map/places";
+import type { Stop } from "@lib/map/stops";
+import { cn } from "@lib/utils";
 import { useMapView } from "./useMapView";
-import { CountryPanel } from "./CountryPanel";
+import { PlacePanel } from "./PlacePanel";
 import { PlaceSearch } from "./PlaceSearch";
+import { RegionList } from "./RegionList";
 import { CityList } from "./CityList";
 import { StatsStrip } from "./StatsStrip";
 import { ImportExport } from "./ImportExport";
 import { InviteBuilder } from "./InviteBuilder";
-import { MAX_STOPS } from "@lib/map/invite";
-import { cn } from "@lib/utils";
 import { btn, btnActive, container, mapBox, overlay } from "./ui";
+
+/** The country a selection belongs to (a state's country, or the country itself). */
+const countryOf = (place: PlaceRef): ISO3 => (place.kind === "country" ? place.code : (regionByCode(place.code)?.country ?? place.code));
 
 export default function TravelMap() {
   const store = useMemo(() => createStore(), []);
   const [data, setData] = useState<TravelData>(() => store.load());
-  const [selected, setSelected] = useState<ISO3 | null>(null);
+  const [selected, setSelected] = useState<PlaceRef | null>(null);
   const { ref, view, error } = useMapView();
+
+  /** Country whose custom pin is being dropped (the next map click places it). */
+  const [pinFor, setPinFor] = useState<ISO3 | null>(null);
+  const pinForRef = useRef<ISO3 | null>(null);
+  pinForRef.current = pinFor;
+
+  /** Trip stops while the planner is open; null when it's closed. */
+  const [planning, setPlanning] = useState<Stop[] | null>(null);
+  const plannerRef = useRef<HTMLDivElement>(null);
 
   function update(next: TravelData) {
     setData(next);
@@ -33,43 +48,42 @@ export default function TravelMap() {
     update({ ...data, countries });
   }
 
-  const [pinFor, setPinFor] = useState<ISO3 | null>(null);
-  /** Trip stops while the planner is open; null when it's closed. */
-  const [planning, setPlanning] = useState<ISO3[] | null>(null);
-  const plannerRef = useRef<HTMLDivElement>(null);
-  const pinForRef = useRef<ISO3 | null>(null);
-  pinForRef.current = pinFor;
-
   function upsertCity(city: City) {
     update({ ...data, cities: data.cities.map((c) => (c.id === city.id ? city : c)) });
   }
 
-  /** Search result: a country just opens its panel; a city is added as "been" (its country too, if new). */
+  function removeCity(id: string) {
+    update({ ...data, cities: data.cities.filter((c) => c.id !== id) });
+  }
+
+  /** Search result: countries and states open their panel; a city is added as "been" (its country too, if new). */
   function pickPlace(place: Place) {
+    if (place.kind === "region") return setSelected({ kind: "region", code: place.code });
     if (place.kind === "city") {
       const { name, iso, lat, lon } = place;
       const cities = addCity(data.cities, { id: cityId(iso, name, lat, lon), name, country: iso, lat, lon, status: "visited" });
       const countries = data.countries[iso] ? data.countries : { ...data.countries, [iso]: { status: "visited" as const } };
       update({ ...data, countries, cities });
     }
-    setSelected(place.iso);
+    setSelected({ kind: "country", code: place.iso });
   }
-  function removeCity(id: string) {
-    update({ ...data, cities: data.cities.filter((c) => c.id !== id) });
+
+  /** Opens an empty trip planner (or scrolls to the one already open, keeping what's in it). */
+  function planTrip() {
+    setPlanning((stops) => stops ?? []);
+    requestAnimationFrame(() => plannerRef.current?.scrollIntoView({ behavior: "smooth", block: "start" }));
   }
 
   useEffect(() => {
     void view?.setCountryColors(statusColors(data));
+    void view?.setRegionColors(regionColors(data));
   }, [view, data]);
 
   useEffect(() => {
     void view?.setPins(data.cities);
   }, [view, data.cities]);
 
-  useEffect(
-    () => (view ? view.onCountryClick((iso) => { if (!pinForRef.current) setSelected(iso); }) : undefined),
-    [view],
-  );
+  useEffect(() => (view ? view.onPlaceClick((place) => { if (!pinForRef.current) setSelected(place); }) : undefined), [view]);
 
   useEffect(() => {
     if (!view) return;
@@ -81,13 +95,8 @@ export default function TravelMap() {
       if (!name) return;
       // Functional update: this handler is registered once and would otherwise see stale `data`.
       setData((current) => {
-        const next = {
-          ...current,
-          cities: [
-            ...current.cities,
-            { id: customCityId(), name: name.slice(0, 200), country: iso, lat, lon, status: "visited" as const, custom: true },
-          ],
-        };
+        const pin: City = { id: customCityId(), name: name.slice(0, 200), country: iso, lat, lon, status: "visited", custom: true };
+        const next = { ...current, cities: [...current.cities, pin] };
         store.save(next);
         return next;
       });
@@ -97,22 +106,16 @@ export default function TravelMap() {
   useEffect(() => {
     const el = ref.current;
     if (!selected || !view || !el) return;
-    // Keep the country clear of the panel: left column on wide screens, bottom sheet on phones.
-    const wide = el.clientWidth >= 768;
-    const padding = wide
-      ? { top: 64, right: 48, bottom: 48, left: 368 }
-      : { top: 72, right: 24, bottom: Math.round(el.clientHeight * 0.55) + 16, left: 24 };
-    view.flyToCountry(selected, { padding });
+    // Keep the place clear of the panel: left column on wide screens, bottom sheet on phones.
+    const padding =
+      el.clientWidth >= 768
+        ? { top: 64, right: 48, bottom: 48, left: 368 }
+        : { top: 72, right: 24, bottom: Math.round(el.clientHeight * 0.55) + 16, left: 24 };
+    if (selected.kind === "region") view.flyToRegion(selected.code, { padding });
+    else view.flyToCountry(selected.code, { padding });
   }, [view, selected]);
 
-  /** The one "Plan a trip" entry point: starts with the selected country, or adds it to an open plan. */
-  function planTrip() {
-    setPlanning((stops) => {
-      if (!stops) return selected ? [selected] : [];
-      return selected && !stops.includes(selected) && stops.length < MAX_STOPS ? [...stops, selected] : stops;
-    });
-    requestAnimationFrame(() => plannerRef.current?.scrollIntoView({ behavior: "smooth", block: "start" }));
-  }
+  const iso = selected && countryOf(selected);
 
   return (
     <div class="space-y-6">
@@ -134,29 +137,36 @@ export default function TravelMap() {
           </button>
         </div>
 
-        {selected ? (
+        {selected && iso ? (
           <div class="absolute inset-x-3 bottom-3 z-10 max-h-[55%] overflow-y-auto rounded-lg md:inset-x-auto md:bottom-auto md:left-3 md:top-3 md:max-h-[calc(100%-1.5rem)] md:w-80">
-            <CountryPanel
-              iso={selected}
-              entry={data.countries[selected]}
-              onChange={(e) => setCountry(selected, e)}
-              onClose={() => { setSelected(null); setPinFor(null); }}
-            >
-              <CityList
-                cities={data.cities.filter((c) => c.country === selected)}
-                onChange={upsertCity}
-                onRemove={removeCity}
+            {selected.kind === "region" ? (
+              <PlacePanel
+                name={regionByCode(selected.code)?.name ?? selected.code}
+                entry={data.regions[selected.code]}
+                onChange={(entry) => update(setRegion(data, selected.code, entry))}
+                onClose={() => setSelected(null)}
+                back={{ label: countryName(iso), onClick: () => setSelected({ kind: "country", code: iso }) }}
               />
-              <p class="text-xs">Add cities with the search box, or:</p>
-              <button
-                type="button"
-                class={cn(btn, pinFor === selected && btnActive)}
-                aria-pressed={pinFor === selected}
-                onClick={() => setPinFor(pinFor === selected ? null : selected)}
+            ) : (
+              <PlacePanel
+                name={countryName(iso)}
+                entry={data.countries[iso]}
+                onChange={(entry) => setCountry(iso, entry)}
+                onClose={() => { setSelected(null); setPinFor(null); }}
               >
-                {pinFor === selected ? "Click the map to drop the pin… (cancel)" : "📍 Drop a custom pin"}
-              </button>
-            </CountryPanel>
+                <RegionList iso={iso} data={data} onPick={(code) => setSelected({ kind: "region", code })} />
+                <CityList cities={data.cities.filter((c) => c.country === iso)} onChange={upsertCity} onRemove={removeCity} />
+                <p class="text-xs">Add cities with the search box, or:</p>
+                <button
+                  type="button"
+                  class={cn(btn, pinFor === iso && btnActive)}
+                  aria-pressed={pinFor === iso}
+                  onClick={() => setPinFor(pinFor === iso ? null : iso)}
+                >
+                  {pinFor === iso ? "Click the map to drop the pin… (cancel)" : "📍 Drop a custom pin"}
+                </button>
+              </PlacePanel>
+            )}
           </div>
         ) : (
           !error && (
@@ -170,11 +180,7 @@ export default function TravelMap() {
       <div class={cn(container, "space-y-10")}>
         {planning && (
           <div ref={plannerRef} class="scroll-mt-24">
-            <InviteBuilder
-              stops={planning}
-              onStopsChange={setPlanning}
-              onClose={() => setPlanning(null)}
-            />
+            <InviteBuilder stops={planning} onStopsChange={setPlanning} onClose={() => setPlanning(null)} />
           </div>
         )}
         <StatsStrip data={data} />

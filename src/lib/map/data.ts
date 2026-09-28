@@ -1,4 +1,5 @@
 import { z } from "astro/zod";
+import { regionByCode } from "./meta";
 
 export type ISO3 = string;
 export const STATUSES = ["visited", "lived", "want"] as const;
@@ -13,6 +14,8 @@ export function isHttpsUrl(s: string): boolean {
 }
 
 export const iso3Schema = z.string().regex(/^[A-Z]{3}$/, "must be a 3-letter uppercase country code");
+/** A state/province: ISO 3166-2, e.g. "BR-SP". */
+export const regionCodeSchema = z.string().regex(/^[A-Z]{2}-[A-Z0-9]{1,3}$/, "must be an ISO 3166-2 code like BR-SP");
 const yearSchema = z.number().int().min(1900).max(2100);
 const noteSchema = z.string().max(2000);
 
@@ -38,6 +41,7 @@ export const citySchema = z.object({
 export const travelDataSchema = z.object({
   version: z.literal(1),
   countries: z.record(iso3Schema, countryEntrySchema),
+  regions: z.record(regionCodeSchema, countryEntrySchema),
   cities: z.array(citySchema),
 });
 
@@ -46,67 +50,46 @@ export type City = z.infer<typeof citySchema>;
 export type TravelData = z.infer<typeof travelDataSchema>;
 
 export function emptyData(): TravelData {
-  return { version: 1, countries: {}, cities: [] };
+  return { version: 1, countries: {}, regions: {}, cities: [] };
 }
 
-/** Bring older or hand-written documents up to the current shape before validating. */
-export function migrate(raw: unknown): unknown {
-  if (typeof raw !== "object" || raw === null || Array.isArray(raw)) return raw;
-  const obj = raw as Record<string, unknown>;
-  return {
-    ...obj,
-    version: obj.version ?? 1,
-    cities: obj.cities ?? [],
-  };
+/** The codes the app has shapes for; anything else in imported data is dropped. */
+export interface KnownCodes {
+  countries: ReadonlySet<string>;
+  regions: ReadonlySet<string>;
 }
 
-export function dropUnknown(
-  data: TravelData,
-  known: ReadonlySet<string>,
-): { data: TravelData; unknown: ISO3[] } {
-  const unknown = new Set<ISO3>();
-  const countries: TravelData["countries"] = {};
-  for (const [iso, entry] of Object.entries(data.countries)) {
-    if (known.has(iso)) countries[iso] = entry;
-    else unknown.add(iso);
+export function dropUnknown(data: TravelData, known: KnownCodes): { data: TravelData; unknown: string[] } {
+  const unknown = new Set<string>();
+  const keepKnown = <T>(entries: Record<string, T>, codes: ReadonlySet<string>): Record<string, T> =>
+    Object.fromEntries(Object.entries(entries).filter(([code]) => codes.has(code) || (unknown.add(code), false)));
+  const countries = keepKnown(data.countries, known.countries);
+  const regions = keepKnown(data.regions, known.regions);
+  const cities = data.cities.filter((c) => known.countries.has(c.country) || (unknown.add(c.country), false));
+  return { data: { ...data, countries, regions, cities }, unknown: [...unknown] };
+}
+
+const STATUS_RANK: Record<Status, number> = { want: 0, visited: 1, lived: 2 };
+
+/**
+ * Set or clear a state. Marking a state also raises its country to at least the same status
+ * (want < visited < lived), keeping the country's years and note; the country is never lowered.
+ * Clearing a state leaves the country alone.
+ */
+export function setRegion(data: TravelData, code: string, entry: CountryEntry | null): TravelData {
+  const regions = { ...data.regions };
+  if (!entry) {
+    delete regions[code];
+    return { ...data, regions };
   }
-  const cities = data.cities.filter((c) => {
-    if (known.has(c.country)) return true;
-    unknown.add(c.country);
-    return false;
-  });
-  return { data: { ...data, countries, cities }, unknown: [...unknown] };
+  regions[code] = entry;
+  const iso = regionByCode(code)?.country;
+  const country = iso ? data.countries[iso] : undefined;
+  if (!iso || (country && STATUS_RANK[country.status] >= STATUS_RANK[entry.status])) return { ...data, regions };
+  return { ...data, regions, countries: { ...data.countries, [iso]: { ...country, status: entry.status } } };
 }
 
 export function parseYears(s: string): number[] {
   const years = (s.match(/\d{4}/g) ?? []).map(Number).filter((y) => y >= 1900 && y <= 2100);
   return [...new Set(years)].sort((a, b) => a - b);
-}
-
-/**
- * Mark countries as "want to go" (e.g. from an invite), recording the trip year and a note.
- * Countries already visited/lived keep their entry; ones already on the want list get the year/note merged.
- * `added` lists the countries that changed; when nothing changes the same `data` object is returned.
- */
-export function addWants(
-  data: TravelData,
-  isos: ISO3[],
-  { year, note }: { year?: number; note?: string } = {},
-): { data: TravelData; added: ISO3[] } {
-  const countries = { ...data.countries };
-  const added: ISO3[] = [];
-  for (const iso of new Set(isos)) {
-    const current = countries[iso];
-    if (current && current.status !== "want") continue;
-    const years = [...new Set([...(current?.years ?? []), ...(year ? [year] : [])])].sort((a, b) => a - b);
-    const notes = current?.note ?? "";
-    const nextNote = note && !notes.includes(note) ? (notes ? `${notes}\n${note}` : note) : notes;
-    const next: CountryEntry = { ...current, status: "want" };
-    if (years.length) next.years = years;
-    if (nextNote) next.note = nextNote;
-    if (current && JSON.stringify(next) === JSON.stringify(current)) continue;
-    countries[iso] = next;
-    added.push(iso);
-  }
-  return added.length ? { data: { ...data, countries }, added } : { data, added };
 }

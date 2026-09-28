@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { COUNTRIES, KNOWN_ISO, countryName, searchCountries } from "./meta";
+import { COUNTRIES, KNOWN_ISO, KNOWN_REGIONS, REGIONS, countryName, regionByCode, regionsOf, searchCountries, searchRegions } from "./meta";
 
 describe("country meta", () => {
   it("uses ADM0_A3 so France and Norway have real codes", () => {
@@ -56,5 +56,27 @@ describe("searchCountries", () => {
   it("returns nothing for an empty query and respects the limit", () => {
     expect(searchCountries("  ")).toEqual([]);
     expect(searchCountries("a", 5)).toHaveLength(5);
+  });
+});
+
+describe("regions (Brazilian states)", () => {
+  it("has the 27 Brazilian states with unique ISO 3166-2 codes", () => {
+    const br = regionsOf("BRA");
+    expect(br).toHaveLength(27);
+    expect(new Set(br.map((r) => r.code)).size).toBe(27);
+    expect(br.every((r) => /^BR-[A-Z]{2}$/.test(r.code) && r.country === "BRA")).toBe(true);
+    for (const code of ["BR-SP", "BR-BA", "BR-DF", "BR-RJ", "BR-AM"]) expect(KNOWN_REGIONS.has(code), code).toBe(true);
+  });
+  it("names and bboxes", () => {
+    expect(regionByCode("BR-SP")?.name).toBe("São Paulo");
+    for (const r of REGIONS) {
+      const [w, s, e, n] = r.bbox;
+      expect(w).toBeLessThan(e);
+      expect(s).toBeLessThan(n);
+    }
+  });
+  it("searchRegions ignores accents", () => {
+    expect(searchRegions("sao paulo")[0]?.code).toBe("BR-SP");
+    expect(searchRegions("  ")).toEqual([]);
   });
 });

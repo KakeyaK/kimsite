@@ -1,4 +1,4 @@
-import { dropUnknown, emptyData, migrate, travelDataSchema, type TravelData } from "./data";
+import { dropUnknown, emptyData, travelDataSchema, type KnownCodes, type TravelData } from "./data";
 
 export const STORAGE_KEY = "travel-map:v1";
 
@@ -40,7 +40,7 @@ export function createStore(storage: StorageLike | null = browserStorage()): Sto
       }
       if (raw === null) return emptyData();
       try {
-        const parsed = travelDataSchema.safeParse(migrate(JSON.parse(raw)));
+        const parsed = travelDataSchema.safeParse(JSON.parse(raw));
         if (parsed.success) return (memory = parsed.data);
       } catch {
         // fall through to the corrupt path
@@ -81,14 +81,14 @@ export type ImportResult =
   | { ok: true; data: TravelData; warnings: string[] }
   | { ok: false; errors: string[] };
 
-export function importJson(text: string, known: ReadonlySet<string>): ImportResult {
+export function importJson(text: string, known: KnownCodes): ImportResult {
   let raw: unknown;
   try {
     raw = JSON.parse(text);
   } catch {
     return { ok: false, errors: ["The file is not valid JSON."] };
   }
-  const parsed = travelDataSchema.safeParse(migrate(raw));
+  const parsed = travelDataSchema.safeParse(raw);
   if (!parsed.success) {
     return {
       ok: false,
@@ -96,7 +96,7 @@ export function importJson(text: string, known: ReadonlySet<string>): ImportResu
     };
   }
   const { data, unknown } = dropUnknown(parsed.data, known);
-  const warnings = unknown.length ? [`Ignored unknown country codes: ${unknown.join(", ")}`] : [];
+  const warnings = unknown.length ? [`Ignored unknown place codes: ${unknown.join(", ")}`] : [];
   return { ok: true, data, warnings };
 }
 

@@ -18,8 +18,8 @@ const throwing: StorageLike = {
   removeItem: () => { throw new Error("SecurityError"); },
 };
 
-const data: TravelData = { version: 1, countries: { JPN: { status: "visited" } }, cities: [] };
-const known = new Set(["JPN", "BRA"]);
+const data: TravelData = { version: 1, regions: {}, countries: { JPN: { status: "visited" } }, cities: [] };
+const known = { countries: new Set(["JPN", "BRA"]), regions: new Set(["BR-SP"]) };
 
 describe("createStore", () => {
   it("round-trips through storage", () => {
@@ -76,22 +76,26 @@ describe("importJson", () => {
   });
 
   it("reports per-field errors with their path", () => {
-    const r = importJson(JSON.stringify({ version: 1, countries: { JPN: { status: "visited", years: ["2019"] } }, cities: [] }), known);
+    const r = importJson(JSON.stringify({ version: 1, regions: {}, countries: { JPN: { status: "visited", years: ["2019"] } }, cities: [] }), known);
     expect(r.ok).toBe(false);
     if (!r.ok) expect(r.errors.some((e) => e.startsWith("countries.JPN.years.0"))).toBe(true);
   });
 
-  it("migrates a document without a version", () => {
-    const r = importJson(JSON.stringify({ countries: { BRA: { status: "lived" } } }), known);
-    expect(r.ok).toBe(true);
-  });
-
   it("drops unknown countries and warns", () => {
-    const r = importJson(JSON.stringify({ version: 1, countries: { JPN: { status: "visited" }, ZZZ: { status: "want" } }, cities: [] }), known);
+    const r = importJson(JSON.stringify({ version: 1, regions: {}, countries: { JPN: { status: "visited" }, ZZZ: { status: "want" } }, cities: [] }), known);
     expect(r.ok).toBe(true);
     if (r.ok) {
       expect(Object.keys(r.data.countries)).toEqual(["JPN"]);
       expect(r.warnings[0]).toMatch(/ZZZ/);
+    }
+  });
+
+  it("drops unknown regions and warns", () => {
+    const r = importJson(JSON.stringify({ version: 1, countries: {}, regions: { "BR-SP": { status: "visited" }, "BR-XX": { status: "want" } }, cities: [] }), known);
+    expect(r.ok).toBe(true);
+    if (r.ok) {
+      expect(Object.keys(r.data.regions)).toEqual(["BR-SP"]);
+      expect(r.warnings[0]).toMatch(/BR-XX/);
     }
   });
 });

@@ -14,6 +14,14 @@ interface Props {
   class?: string;
 }
 
+const ICON: Record<Place["kind"], string> = { country: "🌍", region: "🗺", city: "📍" };
+
+function placeKey(p: Place): string {
+  if (p.kind === "country") return p.iso;
+  if (p.kind === "region") return p.code;
+  return `${p.iso}-${p.name}-${p.lat}-${p.lon}`;
+}
+
 /** Type-ahead place search (ARIA combobox): arrows move, Enter picks, Escape closes. */
 export function PlaceSearch({ onPick, label, placeholder = label, cities = false, class: className }: Props) {
   const listId = useId();
@@ -78,7 +86,7 @@ export function PlaceSearch({ onPick, label, placeholder = label, cities = false
         >
           {results.map((p, i) => (
             <li
-              key={p.kind === "country" ? p.iso : `${p.iso}-${p.name}-${p.lat}`}
+              key={placeKey(p)}
               id={`${listId}-${i}`}
               role="option"
               aria-selected={i === active}
@@ -93,9 +101,9 @@ export function PlaceSearch({ onPick, label, placeholder = label, cities = false
               }}
               onMouseEnter={() => setActive(i)}
             >
-              <span aria-hidden="true">{p.kind === "country" ? "🌍" : "📍"}</span>
+              <span aria-hidden="true">{ICON[p.kind]}</span>
               <span class="flex-1">{p.name}</span>
-              {p.kind === "city" && <span class="text-xs text-black/50 dark:text-white/60">{countryName(p.iso)}</span>}
+              {p.kind !== "country" && <span class="text-xs text-black/50 dark:text-white/60">{countryName(p.iso)}</span>}
             </li>
           ))}
         </ul>

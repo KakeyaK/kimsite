@@ -1,7 +1,7 @@
 import { useState } from "preact/hooks";
 import type { TravelData } from "@lib/map/data";
 import { downloadJson, importJson } from "@lib/map/storage";
-import { KNOWN_ISO } from "@lib/map/meta";
+import { KNOWN_CODES } from "@lib/map/meta";
 import { btn } from "./ui";
 
 interface Props {
@@ -16,7 +16,7 @@ export function ImportExport({ data, onImport, onClear }: Props) {
 
   async function handleFile(file: File | undefined) {
     if (!file) return;
-    const result = importJson(await file.text(), KNOWN_ISO);
+    const result = importJson(await file.text(), KNOWN_CODES);
     if (!result.ok) {
       setMessages(result.errors.slice(0, 10).map((text) => ({ kind: "error", text })));
       return;

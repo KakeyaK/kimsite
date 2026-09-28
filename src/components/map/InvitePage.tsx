@@ -1,6 +1,6 @@
 import { useEffect, useState } from "preact/hooks";
 import { decodeInvite, parseHash } from "@lib/map/invite";
-import { KNOWN_ISO } from "@lib/map/meta";
+import { KNOWN_CODES } from "@lib/map/meta";
 import { cn } from "@lib/utils";
 import { InviteView } from "./InviteView";
 import { btn, container } from "./ui";
@@ -16,7 +16,7 @@ export default function InvitePage() {
   }, []);
 
   const payload = parseHash(hash);
-  const decoded = payload ? decodeInvite(payload, KNOWN_ISO) : null;
+  const decoded = payload ? decodeInvite(payload, KNOWN_CODES) : null;
   if (payload && decoded) return <InviteView key={payload} invite={decoded.value} unknown={decoded.unknown} />;
 
   return (

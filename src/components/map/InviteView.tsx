@@ -1,30 +1,46 @@
 import { useEffect, useState } from "preact/hooks";
-import { addWants, type ISO3 } from "@lib/map/data";
+import { googleCalendarUrl } from "@lib/map/calendar";
 import type { Invite } from "@lib/map/invite";
-import { countryName } from "@lib/map/meta";
 import type { ColorKey } from "@lib/map/stats";
 import { createStore } from "@lib/map/storage";
+import { addStops, isCityStop, isRegionStop, outlinedCountries, stopKey, stopList, stopName, type Stop } from "@lib/map/stops";
 import { cn } from "@lib/utils";
 import { useMapView } from "./useMapView";
 import { Postcard } from "./Postcard";
-import { placeList } from "./format";
 import { btn, container, mapBox, overlay } from "./ui";
 
-type Added = { added: ISO3[]; saved: boolean };
+type Added = { added: Stop[]; saved: boolean };
 
-export function InviteView({ invite, unknown }: { invite: Invite; unknown: ISO3[] }) {
+/** Countries and states on the trip get the trip colour; cities get a trip pin. */
+function tripColors(stops: Stop[]) {
+  const countries: Record<string, ColorKey> = {};
+  const regions: Record<string, ColorKey> = {};
+  for (const stop of stops) {
+    if (isCityStop(stop)) continue;
+    (isRegionStop(stop) ? regions : countries)[stop] = "stop";
+  }
+  return { countries, regions };
+}
+
+export function InviteView({ invite, unknown }: { invite: Invite; unknown: string[] }) {
   const { ref, view, error } = useMapView({ globe: true });
   const [phase, setPhase] = useState<"intro" | "postcard">("intro");
   const [stop, setStop] = useState<number | null>(null);
   const [added, setAdded] = useState<Added | null>(null);
-  const places = placeList(invite.stops);
+  const places = stopList(invite.stops);
   const headline = invite.from ? `${invite.from} says: let's visit ${places}!` : `Let's visit ${places}!`;
+  const calendarUrl = googleCalendarUrl(invite, window.location.href);
 
   useEffect(() => {
     if (!view) return;
     let cancelled = false;
-    const colors: Record<ISO3, ColorKey> = Object.fromEntries(invite.stops.map((iso) => [iso, "stop" as const]));
-    void view.setCountryColors(colors);
+    const { countries, regions } = tripColors(invite.stops);
+    void view.setCountryColors(countries);
+    void view.setRegionColors(regions);
+    void view.setCountryOutlines(outlinedCountries(invite.stops));
+    void view.setPins(
+      invite.stops.filter(isCityStop).map((c) => ({ id: stopKey(c), name: c.n, lat: c.la, lon: c.lo, status: "stop" as const })),
+    );
     void view.setArcs(invite.stops);
     // Tour every stop in order, then show the postcard.
     view
@@ -40,7 +56,7 @@ export function InviteView({ invite, unknown }: { invite: Invite; unknown: ISO3[
   function addToMyMap() {
     const store = createStore();
     // Record when the trip is and who it's with, straight from the invite.
-    const result = addWants(store.load(), invite.stops, {
+    const result = addStops(store.load(), invite.stops, {
       year: invite.date ? Number(invite.date.slice(0, 4)) : undefined,
       note: invite.from ? `Travel with ${invite.from}` : undefined,
     });
@@ -62,7 +78,7 @@ export function InviteView({ invite, unknown }: { invite: Invite; unknown: ISO3[
         </h1>
         {phase === "intro" && stop !== null && invite.stops.length > 1 && (
           <p class={cn(overlay, "pointer-events-none absolute bottom-3 left-3 px-3 py-1.5 text-sm text-black dark:text-white")} aria-live="polite">
-            Stop {stop + 1} of {invite.stops.length} · {countryName(invite.stops[stop])}
+            Stop {stop + 1} of {invite.stops.length} · {stopName(invite.stops[stop])}
           </p>
         )}
       </div>
@@ -75,10 +91,15 @@ export function InviteView({ invite, unknown }: { invite: Invite; unknown: ISO3[
             <h2 class="text-xl font-semibold text-black dark:text-white">{headline}</h2>
             <Postcard invite={invite} />
             <div class="flex flex-wrap items-center gap-2 text-sm">
+              {calendarUrl && (
+                <a class={btn} href={calendarUrl} target="_blank" rel="noopener noreferrer">
+                  📅 Add to Google Calendar
+                </a>
+              )}
               {added ? (
                 <p role="status">
                   {added.added.length
-                    ? `Added ${placeList(added.added)} to your map as "Want to go".`
+                    ? `Added ${stopList(added.added)} to your map as "Want to go".`
                     : "These places are already on your map."}
                   {!added.saved && " Your browser is blocking storage, so this won't be kept."}
                 </p>
@@ -89,6 +110,9 @@ export function InviteView({ invite, unknown }: { invite: Invite; unknown: ISO3[
               )}
               <a class={btn} href="/projects/map">Open my map</a>
             </div>
+            {calendarUrl && invite.email && (
+              <p class="text-xs">Saving the event in Google Calendar will offer to send {invite.from ?? "the inviter"} an invitation.</p>
+            )}
           </>
         )}
       </div>

@@ -1,27 +1,37 @@
 import type { ComponentChildren } from "preact";
 import { useEffect, useState } from "preact/hooks";
-import { STATUSES, parseYears, type CountryEntry, type ISO3 } from "@lib/map/data";
-import { countryName } from "@lib/map/meta";
+import { STATUSES, parseYears, type CountryEntry } from "@lib/map/data";
 import { cn } from "@lib/utils";
 import { btn, btnActive, input, overlay, STATUS_LABEL } from "./ui";
 import { Swatch } from "./Swatch";
 
 interface Props {
-  iso: ISO3;
+  /** Country or state name. */
+  name: string;
   entry: CountryEntry | undefined;
   onChange: (entry: CountryEntry | null) => void;
   onClose: () => void;
+  /** For a state: a link back to its country's panel. */
+  back?: { label: string; onClick: () => void };
   children?: ComponentChildren;
 }
 
-export function CountryPanel({ iso, entry, onChange, onClose, children }: Props) {
+/** Status, years and note for a country or a state, floating over the map. */
+export function PlacePanel({ name, entry, onChange, onClose, back, children }: Props) {
   const [yearsText, setYearsText] = useState(entry?.years?.join(", ") ?? "");
-  useEffect(() => setYearsText(entry?.years?.join(", ") ?? ""), [iso, entry?.years?.join(",")]);
+  useEffect(() => setYearsText(entry?.years?.join(", ") ?? ""), [name, entry?.years?.join(",")]);
 
   return (
-    <section class={cn(overlay, "space-y-4 p-4")} aria-label={`${countryName(iso)} details`}>
+    <section class={cn(overlay, "space-y-4 p-4")} aria-label={`${name} details`}>
       <div class="flex items-start justify-between gap-2">
-        <h2 class="text-lg font-semibold text-black dark:text-white">{countryName(iso)}</h2>
+        <div>
+          {back && (
+            <button type="button" class="text-xs underline underline-offset-2" onClick={back.onClick}>
+              ← {back.label}
+            </button>
+          )}
+          <h2 class="text-lg font-semibold text-black dark:text-white">{name}</h2>
+        </div>
         <button type="button" class={btn} onClick={onClose} aria-label="Close panel">✕</button>
       </div>
 

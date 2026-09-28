@@ -2,15 +2,15 @@
 import PageLayout from "@layouts/PageLayout.astro";
 import KimMap from "@components/map/KimMap";
 import raw from "@data/travel.json";
-import { dropUnknown, migrate, travelDataSchema } from "@lib/map/data";
-import { KNOWN_ISO } from "@lib/map/meta";
+import { dropUnknown, travelDataSchema } from "@lib/map/data";
+import { KNOWN_CODES } from "@lib/map/meta";
 
-const parsed = travelDataSchema.safeParse(migrate(raw));
+const parsed = travelDataSchema.safeParse(raw);
 if (!parsed.success) {
   throw new Error(`src/data/travel.json is invalid:\n${parsed.error.issues.map((i) => `${i.path.join(".")}: ${i.message}`).join("\n")}`);
 }
-const { data, unknown } = dropUnknown(parsed.data, KNOWN_ISO);
-if (unknown.length) console.warn(`travel.json: ignoring unknown country codes ${unknown.join(", ")}`);
+const { data, unknown } = dropUnknown(parsed.data, KNOWN_CODES);
+if (unknown.length) console.warn(`travel.json: ignoring unknown place codes ${unknown.join(", ")}`);
 ---
 
 <PageLayout title="Kim's travel map" description="Where I've been, lived, and want to go.">
