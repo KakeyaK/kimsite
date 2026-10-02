@@ -43,6 +43,15 @@ Self-contained projects that live inside the site each get a folder under `src/a
 - Import with the alias: `@apps/travel-map/lib/...`.
 - `src/components/` and `src/lib/` are for the site itself (header, cards, blog helpers), not app code.
 
+## Search palette
+
+Shift+Esc (or the search icon in the header) opens a Spotlight-style palette on every page, showing the 3 best matches.
+
+- [src/pages/search.json.ts](src/pages/search.json.ts) builds the index at build time: the sections, every blog folder, every post and project, plus a project's `demoURL` when it points at this site. A new top-level page has to be added there by hand.
+- [src/lib/search.ts](src/lib/search.ts) holds the `SearchItem` type and the pure matching/ranking (`searchItems`), tested in `search.test.ts`.
+- [src/components/SearchPalette.astro](src/components/SearchPalette.astro) (rendered by `PageLayout`) is the `<dialog>` and its script; it fetches `/search.json` the first time it opens.
+- The shortcut must never be a key that types a character: the homepage typing test (and any text field) has to receive every letter.
+
 ## Layout & styling
 
 - [src/layouts/PageLayout.astro](src/layouts/PageLayout.astro) is the single page shell (`Head` + `Header` + `<slot/>` + `Footer`), takes `title`/`description`. Page `<title>` becomes `${title} | ${SITE.NAME}`.

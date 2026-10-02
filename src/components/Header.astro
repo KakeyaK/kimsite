@@ -1,6 +1,7 @@
 ---
 import Container from "@components/Container.astro";
 import Link from "@components/Link.astro";
+import Search from "@components/icons/Search.astro";
 ---
 
 <header>
@@ -9,12 +10,22 @@ import Link from "@components/Link.astro";
       <Link href="/" underline={false}>
         <div class="font-semibold">kakeya.kim</div>
       </Link>
-      <nav class="flex gap-1">
+      <nav class="flex items-center gap-1">
         <Link href="/blog"> blog </Link>
         <span>
           {`/`}
         </span>
         <Link href="/projects"> projects </Link>
+        <button
+          id="search-button"
+          type="button"
+          aria-label="Search"
+          aria-keyshortcuts="Shift+Escape"
+          title="Search (Shift+Esc)"
+          class="ml-2 hover:text-black dark:hover:text-white transition-colors duration-300 ease-in-out"
+        >
+          <Search />
+        </button>
       </nav>
     </div>
   </Container>
