@@ -1,7 +1,7 @@
 import { useMemo, useState } from "preact/hooks";
-import { emailSchema, inviteUrl, MAX_MESSAGE, MAX_STOPS, type Invite } from "@lib/map/invite";
-import { placeToStop } from "@lib/map/places";
-import { stopKey, stopList, stopName, type Stop } from "@lib/map/stops";
+import { emailSchema, inviteUrl, MAX_MESSAGE, MAX_STOPS, type Invite } from "@apps/travel-map/lib/invite";
+import { placeToStop } from "@apps/travel-map/lib/places";
+import { stopKey, stopList, stopName, type Stop } from "@apps/travel-map/lib/stops";
 import { cn } from "@lib/utils";
 import { PlaceSearch } from "./PlaceSearch";
 import { imageStats, MAX_MD_IMAGES } from "./markdown";

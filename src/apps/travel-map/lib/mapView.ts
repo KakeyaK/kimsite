@@ -6,6 +6,7 @@ import maplibregl, {
   type StyleSpecification,
 } from "maplibre-gl";
 import "maplibre-gl/dist/maplibre-gl.css";
+import "../styles.css";
 import type { FeatureCollection } from "geojson";
 import type { City, ISO3 } from "./data";
 import type { ColorKey } from "./stats";
@@ -166,7 +167,7 @@ export class MapView {
   constructor({ container, globe = false, interactive = true }: { container: HTMLElement; globe?: boolean; interactive?: boolean }) {
     const style: StyleSpecification = {
       version: 8,
-      // Self-hosted (see scripts/build-geodata.mjs): Latin-1 only, which covers every place name we draw.
+      // Self-hosted (see ../scripts/build-geodata.mjs): Latin-1 only, which covers every place name we draw.
       glyphs: `${location.origin}/map/fonts/{fontstack}/{range}.pbf`,
       // Globe when zoomed out, flattening into mercator as the camera zooms in (MapLibre v5 projection expression).
       projection: globe

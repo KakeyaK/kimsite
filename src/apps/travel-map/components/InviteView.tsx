@@ -1,9 +1,9 @@
 import { useEffect, useState } from "preact/hooks";
-import { googleCalendarUrl } from "@lib/map/calendar";
-import type { Invite } from "@lib/map/invite";
-import type { ColorKey } from "@lib/map/stats";
-import { createStore } from "@lib/map/storage";
-import { addStops, isCityStop, isRegionStop, outlinedCountries, stopKey, stopList, stopName, type Stop } from "@lib/map/stops";
+import { googleCalendarUrl } from "@apps/travel-map/lib/calendar";
+import type { Invite } from "@apps/travel-map/lib/invite";
+import type { ColorKey } from "@apps/travel-map/lib/stats";
+import { createStore } from "@apps/travel-map/lib/storage";
+import { addStops, isCityStop, isRegionStop, outlinedCountries, stopKey, stopList, stopName, type Stop } from "@apps/travel-map/lib/stops";
 import { cn } from "@lib/utils";
 import { useMapView } from "./useMapView";
 import { Postcard } from "./Postcard";

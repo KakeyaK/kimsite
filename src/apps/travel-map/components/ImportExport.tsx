@@ -1,7 +1,7 @@
 import { useState } from "preact/hooks";
-import type { TravelData } from "@lib/map/data";
-import { downloadJson, importJson } from "@lib/map/storage";
-import { KNOWN_CODES } from "@lib/map/meta";
+import type { TravelData } from "@apps/travel-map/lib/data";
+import { downloadJson, importJson } from "@apps/travel-map/lib/storage";
+import { KNOWN_CODES } from "@apps/travel-map/lib/meta";
 import { btn } from "./ui";
 
 interface Props {

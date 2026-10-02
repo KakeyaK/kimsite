@@ -1,7 +1,7 @@
 import { Lexer, type Token, type Tokens } from "marked";
 import type { ComponentChildren, VNode } from "preact";
 import { useState } from "preact/hooks";
-import { isHttpsUrl } from "@lib/map/data";
+import { isHttpsUrl } from "@apps/travel-map/lib/data";
 
 export const MAX_MD_IMAGES = 6;
 

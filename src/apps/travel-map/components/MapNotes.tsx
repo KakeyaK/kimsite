@@ -1,5 +1,5 @@
-import { REGIONS, countryName, regionsOf } from "@lib/map/meta";
-import { TOTAL_COUNTRIES } from "@lib/map/stats";
+import { REGIONS, countryName, regionsOf } from "@apps/travel-map/lib/meta";
+import { TOTAL_COUNTRIES } from "@apps/travel-map/lib/stats";
 
 const link = "underline underline-offset-2";
 const byName = (a: string, b: string) => a.localeCompare(b);

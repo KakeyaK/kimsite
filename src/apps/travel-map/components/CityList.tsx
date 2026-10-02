@@ -1,4 +1,4 @@
-import type { City } from "@lib/map/data";
+import type { City } from "@apps/travel-map/lib/data";
 import { cn } from "@lib/utils";
 import { btn, btnActive, input } from "./ui";
 

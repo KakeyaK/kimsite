@@ -101,7 +101,7 @@ const meta = simplified.features
   .sort((a, b) => a.name.localeCompare(b.name));
 const unStates = meta.filter((m) => m.unState).length;
 if (unStates !== UN_STATES) throw new Error(`expected ${UN_STATES} UN member and observer states, got ${unStates}`);
-writeFileSync("src/lib/map/countries.json", JSON.stringify(meta));
+writeFileSync("src/apps/travel-map/lib/countries.json", JSON.stringify(meta));
 // The shipped GeoJSON only needs what the map reads; the other fields were for the meta above.
 for (const f of simplified.features) {
   const { ADM0_A3, NAME, CONTINENT } = f.properties;
@@ -137,7 +137,7 @@ const regions = regionShapes.features
     return { code: f.properties.code, name: f.properties.name, country: f.properties.country, bbox: box.map(round) };
   })
   .sort((a, b) => a.name.localeCompare(b.name));
-writeFileSync("src/lib/map/regions.json", JSON.stringify(regions));
+writeFileSync("src/apps/travel-map/lib/regions.json", JSON.stringify(regions));
 
 // 4. Cities, each with its state when we track them (so visiting a city marks its state).
 // GeoNames ISO-2 → Natural Earth ADM0_A3 via ISO_A2_EH (which is set even where ISO_A2 is -99).

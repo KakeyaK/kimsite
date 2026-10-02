@@ -9,9 +9,11 @@ Personal website built on Astro 5 (static output), based on the [Astro Nano](htt
 ## Commands
 
 - `npm run dev` — dev server at `localhost:4321`
-- `npm run build` — runs `astro check` (type-check) then `astro build`. Use this to validate changes; there is no separate test suite.
+- `npm run build` — runs `astro check` (type-check) then `astro build`. Use this to validate changes, together with `npm test`.
 - `npm run preview` — preview the production build locally
 - `npm run lint` / `npm run lint:fix` — ESLint (Astro + TS + jsx-a11y)
+- `npm test` — Vitest (`src/**/*.test.ts`; today only the apps have tests)
+- `npm run geodata` — regenerates the travel map's geo data (needs network; output is committed)
 - `npm run astro -- --help` — Astro CLI
 
 Path alias: `@*` maps to `./src/*` (e.g. `@components/...`, `@lib/...`, `@layouts/...`, `@consts`, `@types`). Defined in `tsconfig.json`, which extends `astro/tsconfigs/strict`.
@@ -31,6 +33,15 @@ The blog supports arbitrary **nested folders**, unlike the flat `projects`/`work
 - [src/pages/blog/index.astro](src/pages/blog/index.astro) renders the blog root: top-level folder cards plus top-level posts grouped by year (descending).
 
 When adding nested blog content, place markdown under the appropriate directory and add an `index.md` with `folder: true` for any new folder you want labeled in the UI.
+
+## Apps (`src/apps/`)
+
+Self-contained projects that live inside the site each get a folder under `src/apps/<name>/` holding their components, logic, data, styles, scripts and tests. Current apps: `travel-map` (see its [README](src/apps/travel-map/README.md)) and `typing-test` (the typing game on the homepage).
+
+- Only what Astro requires elsewhere stays outside: thin route files in `src/pages/` (title + one component) and static files in `public/<app>/`.
+- An app may import from the site (`@layouts`, `@lib/utils`, …). The site imports an app only from that app's route files or the page that embeds it. Apps never import from each other.
+- Import with the alias: `@apps/travel-map/lib/...`.
+- `src/components/` and `src/lib/` are for the site itself (header, cards, blog helpers), not app code.
 
 ## Layout & styling
 

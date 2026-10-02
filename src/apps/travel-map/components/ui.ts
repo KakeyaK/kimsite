@@ -1,4 +1,4 @@
-import type { Status } from "@lib/map/data";
+import type { Status } from "@apps/travel-map/lib/data";
 
 export const btn =
   "rounded border border-black/15 dark:border-white/20 px-2.5 py-1 text-sm text-black/75 dark:text-white/75 " +

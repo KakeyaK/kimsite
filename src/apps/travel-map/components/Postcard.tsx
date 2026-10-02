@@ -1,5 +1,5 @@
-import type { Invite } from "@lib/map/invite";
-import { daysUntil } from "@lib/map/geo";
+import type { Invite } from "@apps/travel-map/lib/invite";
+import { daysUntil } from "@apps/travel-map/lib/geo";
 import { cn } from "@lib/utils";
 import { renderMarkdown } from "./markdown";
 import { card } from "./ui";

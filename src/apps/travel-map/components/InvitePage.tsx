@@ -1,6 +1,6 @@
 import { useEffect, useState } from "preact/hooks";
-import { decodeInvite, parseHash } from "@lib/map/invite";
-import { KNOWN_CODES } from "@lib/map/meta";
+import { decodeInvite, parseHash } from "@apps/travel-map/lib/invite";
+import { KNOWN_CODES } from "@apps/travel-map/lib/meta";
 import { cn } from "@lib/utils";
 import { InviteView } from "./InviteView";
 import { btn, container } from "./ui";

@@ -1,9 +1,9 @@
 import { useEffect, useMemo, useState } from "preact/hooks";
-import type { TravelData } from "@lib/map/data";
-import { atYear, regionColors, statusColors, yearRange } from "@lib/map/stats";
-import { countryName, regionByCode } from "@lib/map/meta";
-import type { PlaceRef } from "@lib/map/mapView";
-import { createStore } from "@lib/map/storage";
+import type { TravelData } from "@apps/travel-map/lib/data";
+import { atYear, regionColors, statusColors, yearRange } from "@apps/travel-map/lib/stats";
+import { countryName, regionByCode } from "@apps/travel-map/lib/meta";
+import type { PlaceRef } from "@apps/travel-map/lib/mapView";
+import { createStore } from "@apps/travel-map/lib/storage";
 import { cn } from "@lib/utils";
 import { useMapView } from "./useMapView";
 import { StatsStrip } from "./StatsStrip";

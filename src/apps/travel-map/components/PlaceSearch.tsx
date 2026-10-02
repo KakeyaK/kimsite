@@ -1,7 +1,7 @@
 import { useId, useState } from "preact/hooks";
-import { loadCities, type CityRow } from "@lib/map/cities";
-import { countryName } from "@lib/map/meta";
-import { searchPlaces, type Place } from "@lib/map/places";
+import { loadCities, type CityRow } from "@apps/travel-map/lib/cities";
+import { countryName } from "@apps/travel-map/lib/meta";
+import { searchPlaces, type Place } from "@apps/travel-map/lib/places";
 import { cn } from "@lib/utils";
 import { input } from "./ui";
 

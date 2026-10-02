@@ -1,7 +1,7 @@
-import type { TravelData } from "@lib/map/data";
-import { STATUSES } from "@lib/map/data";
-import { continentProgress, countedBeenTo, counts, TOTAL_COUNTRIES } from "@lib/map/stats";
-import { COUNTRIES } from "@lib/map/meta";
+import type { TravelData } from "@apps/travel-map/lib/data";
+import { STATUSES } from "@apps/travel-map/lib/data";
+import { continentProgress, countedBeenTo, counts, TOTAL_COUNTRIES } from "@apps/travel-map/lib/stats";
+import { COUNTRIES } from "@apps/travel-map/lib/meta";
 import { STATUS_LABEL } from "./ui";
 import { Swatch } from "./Swatch";
 

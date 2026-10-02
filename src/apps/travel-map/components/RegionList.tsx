@@ -1,6 +1,6 @@
-import type { ISO3, TravelData } from "@lib/map/data";
-import { regionNoun, regionsOf } from "@lib/map/meta";
-import { regionProgress } from "@lib/map/stats";
+import type { ISO3, TravelData } from "@apps/travel-map/lib/data";
+import { regionNoun, regionsOf } from "@apps/travel-map/lib/meta";
+import { regionProgress } from "@apps/travel-map/lib/stats";
 import { Swatch } from "./Swatch";
 
 /** A country's states (or nations, provinces…) with their status, e.g. "12 / 27 states". Renders nothing for countries without them. */

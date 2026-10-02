@@ -1,6 +1,6 @@
 import type { ComponentChildren } from "preact";
 import { useEffect, useState } from "preact/hooks";
-import { STATUSES, parseYears, type CountryEntry } from "@lib/map/data";
+import { STATUSES, parseYears, type CountryEntry } from "@apps/travel-map/lib/data";
 import { cn } from "@lib/utils";
 import { btn, btnActive, input, overlay, STATUS_LABEL } from "./ui";
 import { Swatch } from "./Swatch";

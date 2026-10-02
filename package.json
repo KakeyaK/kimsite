@@ -12,7 +12,7 @@
     "lint": "eslint .",
     "lint:fix": "eslint . --fix",
     "test": "vitest run",
-    "geodata": "node scripts/build-geodata.mjs"
+    "geodata": "node src/apps/travel-map/scripts/build-geodata.mjs"
   },
   "dependencies": {
     "@astrojs/check": "^0.9.4",
