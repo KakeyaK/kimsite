@@ -1,11 +1,11 @@
 import { describe, it, expect } from "vitest";
-import { markPicked, placeToStop, searchPlaces, type Place } from "./places";
+import { markPicked, placeToStop, searchPlaces, type Area } from "./places";
 import { emptyData, type TravelData } from "./data";
 import type { CityRow } from "./cities";
 
 const cities: CityRow[] = [
   ["Kyoto", "JPN", 35.01, 135.77, 1_500_000],
-  ["Salvador", "BRA", -12.97, -38.51, 2_900_000, "BR-BA"],
+  ["Salvador", "BRA", -12.97, -38.51, 2_900_000],
   ["Japurá", "BRA", -1.8, -66.6, 120_000],
   ["Georgetown", "GUY", 6.8, -58.16, 235_000],
 ];
@@ -21,9 +21,10 @@ describe("searchPlaces", () => {
       { kind: "city", name: "Kyoto", iso: "JPN", lat: 35.01, lon: 135.77 },
     ]);
   });
-  it("still finds countries and states while the city list is loading", () => {
+  it("finds only countries and states without a city list (your map's search, or while it loads)", () => {
     // Georgia and South Georgia, then Georgia the US state
-    expect(searchPlaces("georg", null).map((p) => p.name)).toEqual(["Georgia", "South Georgia and the Islands", "Georgia"]); // Georgia
+    expect(searchPlaces("georg", null).map((p) => p.name)).toEqual(["Georgia", "South Georgia and the Islands", "Georgia"]);
+    expect(searchPlaces("kyo", null)).toEqual([]);
   });
   it("respects the limit and returns nothing for a blank query", () => {
     expect(searchPlaces("a", cities, 5)).toHaveLength(5);
@@ -45,8 +46,7 @@ describe("placeToStop", () => {
 });
 
 describe("markPicked", () => {
-  const sp: Place = { kind: "region", code: "BR-SP", iso: "BRA", name: "São Paulo" };
-  const paris: Place = { kind: "city", iso: "FRA", name: "Paris", lat: 48.85, lon: 2.35 };
+  const sp: Area = { kind: "region", code: "BR-SP", iso: "BRA", name: "São Paulo" };
 
   it("marks an unmarked country as been", () => {
     expect(markPicked(emptyData(), { kind: "country", iso: "JPN", name: "Japan" }).countries).toEqual({ JPN: { status: "visited" } });
@@ -66,21 +66,5 @@ describe("markPicked", () => {
   it("leaves an already-marked state alone", () => {
     const d: TravelData = { ...emptyData(), regions: { "BR-SP": { status: "lived" } } };
     expect(markPicked(d, sp)).toBe(d);
-  });
-
-  it("adds a city with its state, marking the state and country", () => {
-    const salvador = searchPlaces("salva", cities).find((p) => p.kind === "city")!;
-    expect(salvador).toEqual({ kind: "city", name: "Salvador", iso: "BRA", lat: -12.97, lon: -38.51, region: "BR-BA" });
-    const d = markPicked(emptyData(), salvador);
-    expect(d.cities[0].region).toBe("BR-BA");
-    expect(d.regions).toEqual({ "BR-BA": { status: "visited" } });
-    expect(d.countries).toEqual({ BRA: { status: "visited" } });
-  });
-
-  it("adds a city as been, and its country if new", () => {
-    const d = markPicked(emptyData(), paris);
-    expect(d.cities).toEqual([expect.objectContaining({ name: "Paris", country: "FRA", status: "visited" })]);
-    expect(d.countries).toEqual({ FRA: { status: "visited" } });
-    expect(markPicked({ ...d, countries: { FRA: { status: "lived" } } }, paris).countries).toEqual({ FRA: { status: "lived" } });
   });
 });

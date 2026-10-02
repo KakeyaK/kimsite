@@ -9,7 +9,7 @@ interface Props {
   onPick: (place: Place) => void;
   label: string;
   placeholder?: string;
-  /** Also search cities (the bundled list loads the first time the box gets focus). */
+  /** Also search cities, for trip stops (the bundled list loads the first time the box gets focus). */
   cities?: boolean;
   class?: string;
 }

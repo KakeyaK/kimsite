@@ -1,6 +1,109 @@
 {
   "version": 1,
-  "countries": {},
-  "regions": {},
-  "cities": []
+  "countries": {
+    "BRA": {
+      "status": "lived"
+    },
+    "FRA": {
+      "status": "lived"
+    },
+    "GBR": {
+      "status": "lived"
+    },
+    "PRT": {
+      "status": "visited"
+    },
+    "HUN": {
+      "status": "visited"
+    },
+    "AUT": {
+      "status": "visited"
+    },
+    "CZE": {
+      "status": "visited"
+    },
+    "LUX": {
+      "status": "visited"
+    },
+    "DEU": {
+      "status": "visited"
+    },
+    "BEL": {
+      "status": "visited"
+    },
+    "NLD": {
+      "status": "visited"
+    },
+    "USA": {
+      "status": "visited"
+    },
+    "VEN": {
+      "status": "visited"
+    },
+    "COL": {
+      "status": "visited"
+    },
+    "GUY": {
+      "status": "visited"
+    }
+  },
+  "regions": {
+    "BR-SP": {
+      "status": "lived"
+    },
+    "BR-RR": {
+      "status": "visited"
+    },
+    "BR-RJ": {
+      "status": "lived"
+    },
+    "BR-MG": {
+      "status": "visited"
+    },
+    "BR-AM": {
+      "status": "visited"
+    },
+    "BR-GO": {
+      "status": "visited"
+    },
+    "GB-ENG": {
+      "status": "lived"
+    },
+    "GB-WLS": {
+      "status": "visited"
+    },
+    "BR-PA": {
+      "status": "visited"
+    },
+    "BR-DF": {
+      "status": "visited"
+    },
+    "US-FL": {
+      "status": "visited"
+    },
+    "US-GA": {
+      "status": "visited"
+    },
+    "US-SC": {
+      "status": "visited"
+    },
+    "US-NC": {
+      "status": "visited"
+    },
+    "US-VA": {
+      "status": "visited"
+    },
+    "US-MD": {
+      "status": "visited"
+    },
+    "US-IN": {
+      "status": "visited"
+    },
+    "US-IL": {
+      "status": "visited"
+    },
+    "GB-SCT": {
+      "status": "visited"
+    }
+  }
 }

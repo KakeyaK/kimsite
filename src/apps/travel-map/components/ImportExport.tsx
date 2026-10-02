@@ -12,7 +12,7 @@ interface Props {
 
 export function ImportExport({ data, onImport, onClear }: Props) {
   const [messages, setMessages] = useState<{ kind: "error" | "warning" | "ok"; text: string }[]>([]);
-  const isEmpty = Object.keys(data.countries).length === 0 && data.cities.length === 0;
+  const isEmpty = Object.keys(data.countries).length === 0;
 
   async function handleFile(file: File | undefined) {
     if (!file) return;

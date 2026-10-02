@@ -12,8 +12,8 @@ export function MapNotes() {
   return (
     <section aria-label="About the data" class="space-y-1 border-t border-black/10 dark:border-white/15 pt-4 text-xs">
       <p>
-        Country and state shapes come from <a class={link} href="https://www.naturalearthdata.com/">Natural Earth</a>; cities (those
-        with more than 100,000 people) from <a class={link} href="https://www.geonames.org/">GeoNames</a>.
+        Country and state shapes come from <a class={link} href="https://www.naturalearthdata.com/">Natural Earth</a>; the cities you
+        can add to a trip (those with more than 100,000 people) from <a class={link} href="https://www.geonames.org/">GeoNames</a>.
       </p>
       <p>
         Borders, names and the count of {TOTAL_COUNTRIES} countries follow the United Nations: its 193 members plus its 2 observer

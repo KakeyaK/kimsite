@@ -139,7 +139,7 @@ const regions = regionShapes.features
   .sort((a, b) => a.name.localeCompare(b.name));
 writeFileSync("src/apps/travel-map/lib/regions.json", JSON.stringify(regions));
 
-// 4. Cities, each with its state when we track them (so visiting a city marks its state).
+// 4. Cities, for trip stops.
 // GeoNames ISO-2 → Natural Earth ADM0_A3 via ISO_A2_EH (which is set even where ISO_A2 is -99).
 // Several features can share an ISO_A2_EH (Ashmore and Cartier Is. is also "AU"), so the UN state
 // wins and otherwise the first one seen is kept. Merged-away countries (Somaliland…) map to their UN country.
@@ -152,46 +152,15 @@ const zipFile = join(tmp, "cities.zip");
 await download(GEONAMES_URL, zipFile);
 const tsv = execFileSync("unzip", ["-p", zipFile, "cities15000.txt"], { maxBuffer: 256 * 1024 * 1024 }).toString("utf8");
 
-// GeoNames admin-1 ("US.CA") → ISO 3166-2 ("US-CA"). Where Natural Earth doesn't know the GeoNames
-// code (Telangana, Indonesia's newer provinces), the state whose shape contains the city is used.
-const gnToRegion = new Map(Object.entries(UK_NATIONS).map(([gn, code]) => [`GB.${gn}`, code]));
-for (const { properties: p } of JSON.parse(readFileSync(admin1File, "utf8")).features) {
-  if (REGION_COUNTRIES.includes(p.adm0_a3) && regions.some((r) => r.code === p.iso_3166_2)) gnToRegion.set(p.gn_a1_code, p.iso_3166_2);
-}
-const regionCountries = new Set(regions.map((r) => r.country));
-/** Even-odd ray casting over every ring, so holes count as outside. */
-function contains(geom, [x, y]) {
-  return polygons(geom).some((rings) => {
-    let inside = false;
-    for (const ring of rings) {
-      for (let i = 0, j = ring.length - 1; i < ring.length; j = i++) {
-        const [xi, yi] = ring[i];
-        const [xj, yj] = ring[j];
-        if (yi > y !== yj > y && x < ((xj - xi) * (y - yi)) / (yj - yi) + xi) inside = !inside;
-      }
-    }
-    return inside;
-  });
-}
-function regionOf(iso2, admin1, iso3, lon, lat) {
-  if (!regionCountries.has(iso3)) return undefined;
-  return gnToRegion.get(`${iso2}.${admin1}`)
-    ?? regionShapes.features.find((f) => f.properties.country === iso3 && contains(f.geometry, [lon, lat]))?.properties.code;
-}
-
 const cities = [];
 let unmapped = 0;
-let noRegion = 0;
 for (const line of tsv.split("\n")) {
   const cols = line.split("\t");
   const pop = Number(cols[14]);
   if (!(pop > MIN_POP)) continue;
   const iso3 = iso2to3.get(cols[8]);
   if (!iso3) { unmapped++; continue; }
-  const [lat, lon] = [Number(cols[4]), Number(cols[5])];
-  const region = regionOf(cols[8], cols[10], iso3, lon, lat);
-  if (regionCountries.has(iso3) && !region) noRegion++;
-  cities.push([cols[1], iso3, round(lat), round(lon), pop, ...(region ? [region] : [])]);
+  cities.push([cols[1], iso3, round(Number(cols[4])), round(Number(cols[5])), pop]);
 }
 cities.sort((a, b) => b[4] - a[4]);
 writeFileSync("public/map/cities.json", JSON.stringify(cities));
@@ -201,6 +170,5 @@ mkdirSync("public/map/fonts/sans", { recursive: true });
 await download(GLYPHS_URL, "public/map/fonts/sans/0-255.pbf");
 
 console.log(
-  `countries: ${meta.length}, cities: ${cities.length} (skipped ${unmapped} with unmapped country codes, ${noRegion} without a state), ` +
-    `regions: ${regions.length}`,
+  `countries: ${meta.length}, cities: ${cities.length} (skipped ${unmapped} with unmapped country codes), regions: ${regions.length}`,
 );

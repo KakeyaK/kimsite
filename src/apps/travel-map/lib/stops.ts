@@ -1,6 +1,5 @@
 import { z } from "astro/zod";
 import { iso3Schema, regionCodeSchema, type CountryEntry, type ISO3, type KnownCodes, type TravelData } from "./data";
-import { addCity, cityId } from "./cities";
 import { bboxCenter, type BBox, type LonLat } from "./geo";
 import { countryByIso, countryName, regionByCode } from "./meta";
 
@@ -84,16 +83,14 @@ function wantEntry(current: CountryEntry | undefined, { year, note }: Trip): Cou
 }
 
 /**
- * Put a trip's stops on the map as "want to go": cities as want pins, states and countries as want,
- * and the country of every stop too. `added` lists the stops that changed the map; when nothing
- * changes, the same `data` object comes back.
+ * Put a trip's stops on the map as "want to go": states and countries, and the country of every stop
+ * too. A city isn't something the map marks, so a city stop only adds its country. `added` lists the
+ * states and countries that changed the map; when nothing changes, the same `data` object comes back.
  */
-export function addStops(data: TravelData, stops: Stop[], trip: Trip = {}): { data: TravelData; added: Stop[] } {
+export function addStops(data: TravelData, stops: Stop[], trip: Trip = {}): { data: TravelData; added: string[] } {
   const countries = { ...data.countries };
   const regions = { ...data.regions };
-  let cities = data.cities;
-  const added: Stop[] = [];
-  let changed = false;
+  const added: string[] = [];
 
   const want = (entries: Record<string, CountryEntry>, code: string): boolean => {
     const next = wantEntry(entries[code], trip);
@@ -102,18 +99,11 @@ export function addStops(data: TravelData, stops: Stop[], trip: Trip = {}): { da
   };
 
   for (const stop of stops) {
-    let stopChanged = false;
-    if (isCityStop(stop)) {
-      const city = { id: cityId(stop.c, stop.n, stop.la, stop.lo), name: stop.n, country: stop.c, lat: stop.la, lon: stop.lo };
-      const next = addCity(cities, { ...city, status: "want", ...(trip.year ? { year: trip.year } : {}), ...(trip.note ? { note: trip.note } : {}) });
-      stopChanged = next !== cities;
-      cities = next;
-    } else if (isRegionStop(stop)) {
-      stopChanged = want(regions, stop);
-    }
-    const countryChanged = want(countries, stopCountry(stop));
-    if (isCityStop(stop) || isRegionStop(stop) ? stopChanged : countryChanged) added.push(stop);
-    changed ||= stopChanged || countryChanged;
+    const country = stopCountry(stop);
+    const regionChanged = isRegionStop(stop) && want(regions, stop);
+    const countryChanged = want(countries, country);
+    if (regionChanged) added.push(stop);
+    else if (countryChanged) added.push(country);
   }
-  return changed ? { data: { ...data, countries, regions, cities }, added } : { data, added };
+  return added.length ? { data: { ...data, countries, regions }, added } : { data, added };
 }

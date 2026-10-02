@@ -18,7 +18,7 @@ const throwing: StorageLike = {
   removeItem: () => { throw new Error("SecurityError"); },
 };
 
-const data: TravelData = { version: 1, regions: {}, countries: { JPN: { status: "visited" } }, cities: [] };
+const data: TravelData = { version: 1, regions: {}, countries: { JPN: { status: "visited" } } };
 const known = { countries: new Set(["JPN", "BRA"]), regions: new Set(["BR-SP"]) };
 
 describe("createStore", () => {
@@ -76,13 +76,13 @@ describe("importJson", () => {
   });
 
   it("reports per-field errors with their path", () => {
-    const r = importJson(JSON.stringify({ version: 1, regions: {}, countries: { JPN: { status: "visited", years: ["2019"] } }, cities: [] }), known);
+    const r = importJson(JSON.stringify({ version: 1, regions: {}, countries: { JPN: { status: "visited", years: ["2019"] } } }), known);
     expect(r.ok).toBe(false);
     if (!r.ok) expect(r.errors.some((e) => e.startsWith("countries.JPN.years.0"))).toBe(true);
   });
 
   it("drops unknown countries and warns", () => {
-    const r = importJson(JSON.stringify({ version: 1, regions: {}, countries: { JPN: { status: "visited" }, ZZZ: { status: "want" } }, cities: [] }), known);
+    const r = importJson(JSON.stringify({ version: 1, regions: {}, countries: { JPN: { status: "visited" }, ZZZ: { status: "want" } } }), known);
     expect(r.ok).toBe(true);
     if (r.ok) {
       expect(Object.keys(r.data.countries)).toEqual(["JPN"]);
@@ -91,7 +91,7 @@ describe("importJson", () => {
   });
 
   it("drops unknown regions and warns", () => {
-    const r = importJson(JSON.stringify({ version: 1, countries: {}, regions: { "BR-SP": { status: "visited" }, "BR-XX": { status: "want" } }, cities: [] }), known);
+    const r = importJson(JSON.stringify({ version: 1, countries: {}, regions: { "BR-SP": { status: "visited" }, "BR-XX": { status: "want" } } }), known);
     expect(r.ok).toBe(true);
     if (r.ok) {
       expect(Object.keys(r.data.regions)).toEqual(["BR-SP"]);

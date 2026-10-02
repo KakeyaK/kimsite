@@ -3,15 +3,15 @@ import { googleCalendarUrl } from "@apps/travel-map/lib/calendar";
 import type { Invite } from "@apps/travel-map/lib/invite";
 import type { ColorKey } from "@apps/travel-map/lib/stats";
 import { createStore } from "@apps/travel-map/lib/storage";
-import { addStops, isCityStop, isRegionStop, outlinedCountries, stopKey, stopList, stopName, type Stop } from "@apps/travel-map/lib/stops";
+import { addStops, isCityStop, isRegionStop, outlinedCountries, stopList, stopName, type Stop } from "@apps/travel-map/lib/stops";
 import { cn } from "@lib/utils";
 import { useMapView } from "./useMapView";
 import { Postcard } from "./Postcard";
 import { btn, container, mapBox, overlay } from "./ui";
 
-type Added = { added: Stop[]; saved: boolean };
+type Added = { added: string[]; saved: boolean };
 
-/** Countries and states on the trip get the trip colour; cities get a trip pin. */
+/** Countries and states on the trip get the trip colour; cities get a dot. */
 function tripColors(stops: Stop[]) {
   const countries: Record<string, ColorKey> = {};
   const regions: Record<string, ColorKey> = {};
@@ -38,9 +38,7 @@ export function InviteView({ invite, unknown }: { invite: Invite; unknown: strin
     void view.setCountryColors(countries);
     void view.setRegionColors(regions);
     void view.setCountryOutlines(outlinedCountries(invite.stops));
-    void view.setPins(
-      invite.stops.filter(isCityStop).map((c) => ({ id: stopKey(c), name: c.n, lat: c.la, lon: c.lo, status: "stop" as const })),
-    );
+    void view.setCityStops(invite.stops.filter(isCityStop));
     void view.setArcs(invite.stops);
     // Tour every stop in order, then show the postcard.
     view

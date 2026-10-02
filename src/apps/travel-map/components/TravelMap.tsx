@@ -1,8 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from "preact/hooks";
-import { emptyData, setCity, setRegion, type City, type CountryEntry, type ISO3, type TravelData } from "@apps/travel-map/lib/data";
+import { emptyData, setRegion, type CountryEntry, type ISO3, type TravelData } from "@apps/travel-map/lib/data";
 import { createStore } from "@apps/travel-map/lib/storage";
 import { regionColors, statusColors } from "@apps/travel-map/lib/stats";
-import { customCityId } from "@apps/travel-map/lib/cities";
 import { countryName, regionByCode } from "@apps/travel-map/lib/meta";
 import type { PlaceRef } from "@apps/travel-map/lib/mapView";
 import { markPicked, type Place } from "@apps/travel-map/lib/places";
@@ -12,12 +11,11 @@ import { useMapView } from "./useMapView";
 import { PlacePanel } from "./PlacePanel";
 import { PlaceSearch } from "./PlaceSearch";
 import { RegionList } from "./RegionList";
-import { CityList } from "./CityList";
 import { StatsStrip } from "./StatsStrip";
 import { ImportExport } from "./ImportExport";
 import { MapNotes } from "./MapNotes";
 import { InviteBuilder } from "./InviteBuilder";
-import { btn, btnActive, container, mapBox, overlay } from "./ui";
+import { btn, container, mapBox, overlay } from "./ui";
 
 /** The country a selection belongs to (a state's country, or the country itself). */
 const countryOf = (place: PlaceRef): ISO3 => (place.kind === "country" ? place.code : (regionByCode(place.code)?.country ?? place.code));
@@ -27,11 +25,6 @@ export default function TravelMap() {
   const [data, setData] = useState<TravelData>(() => store.load());
   const [selected, setSelected] = useState<PlaceRef | null>(null);
   const { ref, view, error } = useMapView();
-
-  /** Country whose custom pin is being dropped (the next map click places it). */
-  const [pinFor, setPinFor] = useState<ISO3 | null>(null);
-  const pinForRef = useRef<ISO3 | null>(null);
-  pinForRef.current = pinFor;
 
   /** Trip stops while the planner is open; null when it's closed. */
   const [planning, setPlanning] = useState<Stop[] | null>(null);
@@ -49,16 +42,9 @@ export default function TravelMap() {
     update({ ...data, countries });
   }
 
-  function upsertCity(city: City) {
-    update(setCity(data, city));
-  }
-
-  function removeCity(id: string) {
-    update({ ...data, cities: data.cities.filter((c) => c.id !== id) });
-  }
-
-  /** Search result: marks it "been" (see `markPicked`) and opens its panel: a state's, or else its country's. */
+  /** Search result: marks it "been" (see `markPicked`) and opens its panel. */
   function pickPlace(place: Place) {
+    if (place.kind === "city") return; // this search doesn't list cities
     update(markPicked(data, place));
     setSelected(place.kind === "region" ? { kind: "region", code: place.code } : { kind: "country", code: place.iso });
   }
@@ -75,34 +61,10 @@ export default function TravelMap() {
   }, [view, data]);
 
   useEffect(() => {
-    void view?.setPins(data.cities);
-  }, [view, data.cities]);
-
-  useEffect(() => {
     void view?.setSelected(selected);
   }, [view, selected]);
 
-  useEffect(() => (view ? view.onPlaceClick((place) => { if (!pinForRef.current) setSelected(place); }) : undefined), [view]);
-
-  useEffect(() => {
-    if (!view) return;
-    return view.onMapClick(({ lat, lon, region }) => {
-      const iso = pinForRef.current;
-      if (!iso) return;
-      setPinFor(null);
-      const name = window.prompt("Name this place", "My spot")?.trim();
-      if (!name) return;
-      // Functional update: this handler is registered once and would otherwise see stale `data`.
-      setData((current) => {
-        const pin: City = { id: customCityId(), name: name.slice(0, 200), country: iso, lat, lon, status: "visited", custom: true };
-        // Only a state of the pin's own country (a click just over the border lands in a neighbour's).
-        if (region && regionByCode(region)?.country === iso) pin.region = region;
-        const next = setCity(current, pin);
-        store.save(next);
-        return next;
-      });
-    });
-  }, [view]);
+  useEffect(() => (view ? view.onPlaceClick(setSelected) : undefined), [view]);
 
   useEffect(() => {
     const el = ref.current;
@@ -132,7 +94,7 @@ export default function TravelMap() {
         {error ? <p class={cn(container, "py-8")}>{error}</p> : <div ref={ref} class={mapBox} />}
 
         <div class="absolute inset-x-3 top-3 z-10 flex gap-2 md:left-auto md:w-[26rem]">
-          <PlaceSearch cities class="flex-1 shadow-lg" label="Search places" placeholder="Search a place…" onPick={pickPlace} />
+          <PlaceSearch class="flex-1 shadow-lg" label="Search places" placeholder="Search a place…" onPick={pickPlace} />
           <button type="button" class={cn(btn, overlay, "shrink-0 text-black dark:text-white")} onClick={planTrip}>
             ✈️ Plan a trip
           </button>
@@ -153,19 +115,9 @@ export default function TravelMap() {
                 name={countryName(iso)}
                 entry={data.countries[iso]}
                 onChange={(entry) => setCountry(iso, entry)}
-                onClose={() => { setSelected(null); setPinFor(null); }}
+                onClose={() => setSelected(null)}
               >
                 <RegionList iso={iso} data={data} onPick={(code) => setSelected({ kind: "region", code })} />
-                <CityList cities={data.cities.filter((c) => c.country === iso)} onChange={upsertCity} onRemove={removeCity} />
-                <p class="text-xs">Add cities with the search box, or:</p>
-                <button
-                  type="button"
-                  class={cn(btn, pinFor === iso && btnActive)}
-                  aria-pressed={pinFor === iso}
-                  onClick={() => setPinFor(pinFor === iso ? null : iso)}
-                >
-                  {pinFor === iso ? "Click the map to drop the pin… (cancel)" : "📍 Drop a custom pin"}
-                </button>
               </PlacePanel>
             )}
           </div>

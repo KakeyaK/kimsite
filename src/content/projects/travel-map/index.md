@@ -5,7 +5,7 @@ date: "Sep 26 2026"
 demoURL: "/projects/map"
 ---
 
-A small tool that lives entirely in the browser: mark countries you've visited, lived in, or want to see, add cities, and watch your stats grow.
+A small tool that lives entirely in the browser: mark countries and states you've visited, lived in, or want to see, and watch your stats grow.
 
 - [Open your own map](/projects/map). It's saved in your browser only; export it as JSON whenever you like.
 - [See my map](/projects/map/kim), with a timeline of when I got where.

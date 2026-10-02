@@ -1,7 +1,8 @@
 # Travel map
 
-A map to mark the countries, states and cities you've visited, lived in or want to see, and to
-invite friends on a trip. Lives at `/projects/map`; data is saved in the visitor's browser only.
+A map to mark the countries and states you've visited, lived in or want to see, and to invite
+friends on a trip (to a country, a state or a city). Lives at `/projects/map`; data is saved in the
+visitor's browser only.
 
 ## Layout
 
@@ -14,7 +15,7 @@ invite friends on a trip. Lives at `/projects/map`; data is saved in the visitor
 Outside this folder, because Astro needs them there:
 
 - `src/pages/projects/map/` — the three routes; each only picks a title and renders one component.
-- `public/map/` — generated shapes, the city list and the label font, fetched at runtime.
+- `public/map/` — generated shapes, the city list (for trip stops) and the label font, fetched at runtime.
 
 ## Geo data
 

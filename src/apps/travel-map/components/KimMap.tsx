@@ -21,7 +21,6 @@ export default function KimMap({ data }: { data: TravelData }) {
   useEffect(() => {
     void view?.setCountryColors(statusColors(shown));
     void view?.setRegionColors(regionColors(shown));
-    void view?.setPins(shown.cities);
   }, [view, shown]);
 
   useEffect(() => {
@@ -33,7 +32,7 @@ export default function KimMap({ data }: { data: TravelData }) {
   function startOwn() {
     const store = createStore();
     const mine = store.load();
-    const hasMine = Object.keys(mine.countries).length > 0 || mine.cities.length > 0;
+    const hasMine = Object.keys(mine.countries).length > 0;
     if (hasMine && !confirm("Replace your own map with a copy of mine?")) return;
     store.save(structuredClone(data));
     window.location.href = "/projects/map";

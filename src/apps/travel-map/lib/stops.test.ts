@@ -59,27 +59,26 @@ describe("stop helpers", () => {
 describe("addStops", () => {
   const trip = { year: 2027, note: "Travel with Kim" };
 
-  it("adds cities, states and countries as 'want to go' with the year and note", () => {
+  it("adds states and countries as 'want to go' with the year and note; a city adds its country", () => {
     const { data, added } = addStops(emptyData(), [kyoto, "BR-BA", "KOR"], trip);
-    expect(data.cities).toEqual([
-      { id: "JPN-kyoto-35.0-135.8", name: "Kyoto", country: "JPN", lat: 35.01, lon: 135.77, status: "want", year: 2027, note: "Travel with Kim" },
-    ]);
     expect(data.regions["BR-BA"]).toEqual({ status: "want", years: [2027], note: "Travel with Kim" });
     for (const iso of ["JPN", "BRA", "KOR"]) expect(data.countries[iso], iso).toEqual({ status: "want", years: [2027], note: "Travel with Kim" });
-    expect(added).toEqual([kyoto, "BR-BA", "KOR"]);
+    expect(added).toEqual(["JPN", "BR-BA", "KOR"]);
   });
 
-  it("never changes places you've been, and keeps a city that's already on the map", () => {
+  it("lists a country once when several stops are in it", () => {
+    expect(addStops(emptyData(), [kyoto, { ...kyoto, n: "Osaka" }, "JPN"], trip).added).toEqual(["JPN"]);
+  });
+
+  it("never changes places you've been", () => {
     const start: TravelData = {
       ...emptyData(),
       countries: { JPN: { status: "visited", years: [2019] }, BRA: { status: "lived" } },
       regions: { "BR-BA": { status: "lived" } },
-      cities: [{ id: "JPN-kyoto-35.0-135.8", name: "Kyoto", country: "JPN", lat: 35.01, lon: 135.77, status: "visited" }],
     };
     const { data, added } = addStops(start, [kyoto, "BR-BA"], trip);
     expect(data.countries.JPN).toEqual({ status: "visited", years: [2019] });
     expect(data.regions["BR-BA"]).toEqual({ status: "lived" });
-    expect(data.cities).toEqual(start.cities);
     expect(added).toEqual([]);
     expect(data).toBe(start); // nothing to add: the same map comes back
   });

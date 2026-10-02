@@ -52,10 +52,7 @@ export function continentProgress(d: TravelData, meta: CountryMeta[]): Continent
 }
 
 export function yearRange(d: TravelData): [number, number] | null {
-  const years = [
-    ...Object.values(d.countries).flatMap((e) => e.years ?? []),
-    ...d.cities.flatMap((c) => (c.year === undefined ? [] : [c.year])),
-  ];
+  const years = Object.values(d.countries).flatMap((e) => e.years ?? []);
   return years.length ? [Math.min(...years), Math.max(...years)] : null;
 }
 
@@ -65,8 +62,7 @@ export function atYear(d: TravelData, year: number): TravelData {
     Object.fromEntries(
       Object.entries(entries).filter(([, e]) => e.status !== "want" && e.years?.length && Math.min(...e.years) <= year),
     );
-  const cities = d.cities.filter((c) => c.status === "visited" && c.year !== undefined && c.year <= year);
-  return { version: 1, countries: reachedBy(d.countries), regions: reachedBy(d.regions), cities };
+  return { version: 1, countries: reachedBy(d.countries), regions: reachedBy(d.regions) };
 }
 
 /** How many of a country's states you've been to (visited or lived). */

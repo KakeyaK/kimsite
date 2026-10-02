@@ -8,14 +8,11 @@ import maplibregl, {
 import "maplibre-gl/dist/maplibre-gl.css";
 import "../styles.css";
 import type { FeatureCollection } from "geojson";
-import type { City, ISO3 } from "./data";
+import type { ISO3 } from "./data";
 import type { ColorKey } from "./stats";
 import { alongLine, greatCircle, type LonLat } from "./geo";
-import { isCityStop, isRegionStop, stopCenter, type Stop } from "./stops";
+import { isCityStop, isRegionStop, stopCenter, type CityStop, type Stop } from "./stops";
 import { COUNTRIES, REGIONS, countryByIso, regionByCode, regionsOf } from "./meta";
-
-/** A marker: a city on your map (been / want) or a city on a trip ("stop"). */
-export type PinInput = Pick<City, "id" | "name" | "lat" | "lon"> & { status: PinStatus };
 
 const COLOR_KEYS: ColorKey[] = ["visited", "lived", "want", "stop"];
 const EMPTY: FeatureCollection = { type: "FeatureCollection", features: [] };
@@ -78,55 +75,7 @@ const CITY_ZOOM = 6;
 
 /** What a click on the map landed on: a state when one is drawn there, otherwise a country. */
 export type PlaceRef = { kind: "country" | "region"; code: string };
-const PIN_STATUSES = ["visited", "want", "stop"] as const;
-type PinStatus = (typeof PIN_STATUSES)[number];
-const PIN_RATIO = 2; // drawn at 2x for sharp edges on retina screens
-/** The flag's pole sits this many px left of the image centre; shift it so the pole's foot is on the city. */
-const FLAG_POLE_OFFSET = 6;
-
-/**
- * One-colour city markers, drawn on a canvas so they follow the theme tokens:
- * a blue flag for places you've been, a yellow map pin for places you want to go.
- * A soft shadow keeps them readable on a country filled with a similar colour.
- */
-function pinImage(status: PinStatus): ImageData {
-  const r = PIN_RATIO;
-  const canvas = document.createElement("canvas");
-  canvas.width = 18 * r;
-  canvas.height = 24 * r;
-  const g = canvas.getContext("2d")!;
-  g.fillStyle = token(status === "stop" ? "stop" : `pin-${status}`);
-  g.shadowColor = "rgba(0, 0, 0, 0.35)";
-  g.shadowBlur = 2 * r;
-  g.beginPath();
-  if (status === "visited") {
-    // pole + swallow-tail flag + foot
-    g.rect(2 * r, 1 * r, 1.5 * r, 21.5 * r);
-    g.moveTo(3.5 * r, 1.5 * r);
-    g.lineTo(16 * r, 1.5 * r);
-    g.lineTo(12 * r, 6 * r);
-    g.lineTo(16 * r, 10.5 * r);
-    g.lineTo(3.5 * r, 10.5 * r);
-    g.closePath();
-    g.moveTo(4.25 * r, 22.5 * r);
-    g.arc(2.75 * r, 22.5 * r, 1.5 * r, 0, Math.PI * 2);
-  } else {
-    // teardrop map pin (want to go, or a city on a trip) with its tip at the bottom centre
-    g.arc(9 * r, 8 * r, 6.5 * r, Math.PI * 0.8, Math.PI * 0.2);
-    g.lineTo(9 * r, 23 * r);
-    g.closePath();
-  }
-  g.fill();
-  if (status !== "visited") {
-    // punch the classic hole so it stays one colour
-    g.shadowColor = "transparent";
-    g.globalCompositeOperation = "destination-out";
-    g.beginPath();
-    g.arc(9 * r, 8 * r, 2.5 * r, 0, Math.PI * 2);
-    g.fill();
-  }
-  return g.getImageData(0, 0, canvas.width, canvas.height);
-}
+const ICON_RATIO = 2; // drawn at 2x for sharp edges on retina screens
 const sleep = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
 
 /** Material Design "flight" icon (Apache 2.0), a 24×24 path pointing north. */
@@ -136,7 +85,7 @@ const PLANE_SIZE = 34;
 
 /** The plane that flies along the travel lines during the intro, in the trip colour with a land-coloured edge. */
 function planeImage(): ImageData {
-  const r = PIN_RATIO;
+  const r = ICON_RATIO;
   const canvas = document.createElement("canvas");
   canvas.width = canvas.height = PLANE_SIZE * r;
   const g = canvas.getContext("2d")!;
@@ -177,7 +126,7 @@ export class MapView {
         countries: { type: "geojson", data: "/map/countries.geojson", promoteId: "ADM0_A3", attribution: "Natural Earth" },
         regions: { type: "geojson", data: "/map/regions.geojson", promoteId: "code" },
         labels: { type: "geojson", data: LABELS },
-        pins: { type: "geojson", data: EMPTY, attribution: "GeoNames" },
+        cities: { type: "geojson", data: EMPTY, attribution: "GeoNames" },
         arcs: { type: "geojson", data: EMPTY },
         plane: { type: "geojson", data: EMPTY },
       },
@@ -249,15 +198,12 @@ export class MapView {
             "text-opacity": ["interpolate", ["linear"], ["zoom"], LABEL_FADE_START, 0, LABEL_FADE_END, 1],
           },
         },
+        // A trip's city stops: dots in the trip colour, smaller at the world view.
         {
-          id: "pins", type: "symbol", source: "pins",
-          layout: {
-            "icon-image": ["concat", "pin-", ["get", "status"]],
-            "icon-anchor": "bottom",
-            // the pin's tip is centred; the flag's pole is off to the left
-            "icon-offset": ["match", ["get", "status"], "visited", ["literal", [FLAG_POLE_OFFSET, 0]], ["literal", [0, 0]]],
-            "icon-allow-overlap": true,
-            "icon-ignore-placement": true,
+          id: "cities", type: "circle", source: "cities",
+          paint: {
+            "circle-radius": ["interpolate", ["linear"], ["zoom"], 1, 2.5, 4, 3.5, 7, 5],
+            "circle-color": token("stop"),
           },
         },
         {
@@ -291,11 +237,9 @@ export class MapView {
       this.map.touchZoomRotate.disableRotation();
       this.map.addControl(new maplibregl.NavigationControl({ showCompass: false }), "bottom-right"); // top-right holds the search
     }
-    // Marker icons are added lazily, the first time the pins layer asks for them.
+    // The plane icon is added lazily, the first time its layer asks for it.
     this.map.on("styleimagemissing", ({ id }) => {
-      if (id === "plane" && !this.map.hasImage(id)) return this.map.addImage(id, planeImage(), { pixelRatio: PIN_RATIO });
-      const status = PIN_STATUSES.find((s) => id === `pin-${s}`);
-      if (status && !this.map.hasImage(id)) this.map.addImage(id, pinImage(status), { pixelRatio: PIN_RATIO });
+      if (id === "plane" && !this.map.hasImage(id)) this.map.addImage(id, planeImage(), { pixelRatio: ICON_RATIO });
     });
     this.ready = new Promise((resolve) => this.map.once("load", () => resolve()));
     this.themeObserver = new MutationObserver(() => this.applyTheme());
@@ -328,9 +272,7 @@ export class MapView {
     this.map.setPaintProperty("labels", "text-halo-color", token("land"));
     this.map.setPaintProperty("arcs", "line-color", token("stop"));
     this.map.setPaintProperty("arcs-halo", "line-color", token("land"));
-    for (const s of PIN_STATUSES) {
-      if (this.map.hasImage(`pin-${s}`)) this.map.updateImage(`pin-${s}`, pinImage(s));
-    }
+    this.map.setPaintProperty("cities", "circle-color", token("stop"));
     if (this.map.hasImage("plane")) this.map.updateImage("plane", planeImage());
   }
 
@@ -480,14 +422,15 @@ export class MapView {
     });
   }
 
-  async setPins(pins: PinInput[]): Promise<void> {
+  /** Dots for a trip's city stops. */
+  async setCityStops(cities: CityStop[]): Promise<void> {
     await this.ready;
-    (this.map.getSource("pins") as GeoJSONSource).setData({
+    (this.map.getSource("cities") as GeoJSONSource).setData({
       type: "FeatureCollection",
-      features: pins.map((p) => ({
+      features: cities.map((c) => ({
         type: "Feature",
-        properties: { id: p.id, name: p.name, status: p.status },
-        geometry: { type: "Point", coordinates: [p.lon, p.lat] },
+        properties: { name: c.n },
+        geometry: { type: "Point", coordinates: stopCenter(c) },
       })),
     });
   }
@@ -537,13 +480,6 @@ export class MapView {
     if (this.map.getZoom() < REGION_CLICK_ZOOM) return undefined;
     const [region] = this.map.queryRenderedFeatures(point, { layers: ["region-fill"] });
     return typeof region?.id === "string" ? region.id : undefined;
-  }
-
-  /** Any click on the map, with the state under it when states are shown. */
-  onMapClick(cb: (p: { lat: number; lon: number; region?: string }) => void): () => void {
-    const click = (e: maplibregl.MapMouseEvent) => cb({ lat: e.lngLat.lat, lon: e.lngLat.wrap().lng, region: this.regionAt(e.point) });
-    this.map.on("click", click);
-    return () => this.map.off("click", click);
   }
 
   destroy(): void {

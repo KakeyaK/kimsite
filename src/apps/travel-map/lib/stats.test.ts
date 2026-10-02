@@ -22,10 +22,6 @@ const d: TravelData = {
     JPN: { status: "visited", years: [2023] },
     KOR: { status: "want" },
   },
-  cities: [
-    { id: "a", name: "Tokyo", country: "JPN", lat: 0, lon: 0, status: "visited", year: 2023 },
-    { id: "b", name: "Seoul", country: "KOR", lat: 0, lon: 0, status: "want" },
-  ],
 };
 
 describe("counts / beenTo", () => {
@@ -55,18 +51,16 @@ describe("continentProgress", () => {
 });
 
 describe("timeline", () => {
-  it("yearRange covers country and city years", () => {
+  it("yearRange covers country years", () => {
     expect(yearRange(d)).toEqual([2000, 2023]);
   });
   it("yearRange is null without years", () => {
-    expect(yearRange({ version: 1, regions: {}, countries: { BRA: { status: "visited" } }, cities: [] })).toBeNull();
+    expect(yearRange({ version: 1, regions: {}, countries: { BRA: { status: "visited" } } })).toBeNull();
   });
   it("atYear keeps places first reached on or before the year, never wishes", () => {
     const at = atYear(d, 2012);
     expect(Object.keys(at.countries).sort()).toEqual(["ARG", "BRA"]);
-    expect(at.cities).toEqual([]);
     expect(Object.keys(atYear(d, 2023).countries).sort()).toEqual(["ARG", "BRA", "JPN"]);
-    expect(atYear(d, 2023).cities.map((c) => c.id)).toEqual(["a"]);
   });
 });
 
