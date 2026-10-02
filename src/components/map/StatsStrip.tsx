@@ -1,7 +1,7 @@
 import type { TravelData } from "@lib/map/data";
 import { STATUSES } from "@lib/map/data";
-import { badges, continentProgress, countedBeenTo, counts, regionProgress, TOTAL_COUNTRIES } from "@lib/map/stats";
-import { COUNTRIES, REGIONS, countryName, regionByCode } from "@lib/map/meta";
+import { continentProgress, countedBeenTo, counts, TOTAL_COUNTRIES } from "@lib/map/stats";
+import { COUNTRIES } from "@lib/map/meta";
 import { STATUS_LABEL } from "./ui";
 import { Swatch } from "./Swatch";
 
@@ -9,11 +9,6 @@ export function StatsStrip({ data }: { data: TravelData }) {
   const c = counts(data);
   const been = countedBeenTo(data, COUNTRIES).length;
   const progress = continentProgress(data, COUNTRIES);
-  const earned = badges(data, COUNTRIES);
-  // State counts for countries we track states for, once the country or one of its states is on the map.
-  const withStates = [...new Set(REGIONS.map((r) => r.country))].filter(
-    (iso) => data.countries[iso] || Object.keys(data.regions).some((code) => regionByCode(code)?.country === iso),
-  );
 
   return (
     <section aria-label="Stats" class="space-y-3 text-sm">
@@ -28,21 +23,6 @@ export function StatsStrip({ data }: { data: TravelData }) {
           ))}
         </ul>
       </div>
-      {withStates.map((iso) => {
-        const { been, total } = regionProgress(data, iso);
-        return (
-          <p key={iso} class="text-black dark:text-white">
-            {countryName(iso)}: <span class="font-semibold">{been}</span> / {total} states
-          </p>
-        );
-      })}
-      {earned.length > 0 && (
-        <ul class="flex flex-wrap gap-2" aria-label="Badges">
-          {earned.map((b) => (
-            <li key={b} class="rounded-full bg-black/5 dark:bg-white/10 px-2.5 py-0.5">🏅 {b}</li>
-          ))}
-        </ul>
-      )}
       <details>
         <summary class="cursor-pointer">By continent</summary>
         <ul class="mt-2 space-y-1">

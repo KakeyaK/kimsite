@@ -72,6 +72,8 @@ article {
   --map-lived: #7c3aed;
   --map-want: #d97706;
   --map-stop: #e11d48;
+  --map-label: #57534e;
+  --map-selected: #1c1917;
   /* City markers: blue flag = been, yellow pin = want to go */
   --map-pin-visited: #1d4ed8;
   --map-pin-want: #eab308;
@@ -85,6 +87,8 @@ html.dark {
   --map-lived: #a78bfa;
   --map-want: #fbbf24;
   --map-stop: #fb7185;
+  --map-label: #d6d3d1;
+  --map-selected: #fafaf9;
   --map-pin-visited: #2563eb;
   --map-pin-want: #facc15;
 }

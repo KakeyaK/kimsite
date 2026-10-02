@@ -11,7 +11,7 @@ import type { City, ISO3 } from "./data";
 import type { ColorKey } from "./stats";
 import { alongLine, greatCircle, type LonLat } from "./geo";
 import { isCityStop, isRegionStop, stopCenter, type Stop } from "./stops";
-import { REGIONS, countryByIso, regionByCode, regionsOf } from "./meta";
+import { COUNTRIES, REGIONS, countryByIso, regionByCode, regionsOf } from "./meta";
 
 /** A marker: a city on your map (been / want) or a city on a trip ("stop"). */
 export type PinInput = Pick<City, "id" | "name" | "lat" | "lon"> & { status: PinStatus };
@@ -59,6 +59,19 @@ function acrossFade(from: unknown, to: unknown): ExpressionSpecification {
 function countryFill(): ExpressionSpecification {
   return acrossFade(fillColor(token("land")), ["case", hasStates, token("land"), fillColor(token("land"))]);
 }
+/** Country names fade in from here, once there's room for more than a handful. */
+const LABEL_FADE_START = 1.8;
+const LABEL_FADE_END = 2.3;
+const LABELS: FeatureCollection = {
+  type: "FeatureCollection",
+  features: COUNTRIES.map((c) => ({
+    type: "Feature",
+    properties: { name: c.name, rank: c.labelRank },
+    geometry: { type: "Point", coordinates: c.label },
+  })),
+};
+/** Line opacity for the clicked place's border (feature-state `selected`). */
+const SELECTED_OPACITY: ExpressionSpecification = ["case", ["boolean", ["feature-state", "selected"], false], 1, 0];
 /** Zoom for flying to a single city. */
 const CITY_ZOOM = 6;
 
@@ -143,6 +156,7 @@ export class MapView {
   /** Feature ids currently coloured, per source, so stale colours can be cleared. */
   private colored = { countries: new Set<string>(), regions: new Set<string>() };
   private outlined: ISO3[] = [];
+  private selected: PlaceRef | null = null;
   private ready: Promise<void>;
   private themeObserver: MutationObserver;
   private cancelSpin: (() => void) | null = null;
@@ -152,6 +166,8 @@ export class MapView {
   constructor({ container, globe = false, interactive = true }: { container: HTMLElement; globe?: boolean; interactive?: boolean }) {
     const style: StyleSpecification = {
       version: 8,
+      // Self-hosted (see scripts/build-geodata.mjs): Latin-1 only, which covers every place name we draw.
+      glyphs: `${location.origin}/map/fonts/{fontstack}/{range}.pbf`,
       // Globe when zoomed out, flattening into mercator as the camera zooms in (MapLibre v5 projection expression).
       projection: globe
         ? { type: ["interpolate", ["linear"], ["zoom"], 2, "vertical-perspective", 3.5, "mercator"] }
@@ -159,6 +175,7 @@ export class MapView {
       sources: {
         countries: { type: "geojson", data: "/map/countries.geojson", promoteId: "ADM0_A3", attribution: "Natural Earth" },
         regions: { type: "geojson", data: "/map/regions.geojson", promoteId: "code" },
+        labels: { type: "geojson", data: LABELS },
         pins: { type: "geojson", data: EMPTY, attribution: "GeoNames" },
         arcs: { type: "geojson", data: EMPTY },
         plane: { type: "geojson", data: EMPTY },
@@ -192,6 +209,15 @@ export class MapView {
           filter: hasStates as ExpressionSpecification,
           paint: { "line-color": fillColor(TRANSPARENT), "line-width": 2.5, "line-opacity": acrossFade(0, 1) },
         },
+        // The clicked country or state. States are only clickable once drawn, so their border shares their fade.
+        {
+          id: "country-selected", type: "line", source: "countries",
+          paint: { "line-color": token("selected"), "line-width": 2, "line-opacity": SELECTED_OPACITY },
+        },
+        {
+          id: "region-selected", type: "line", source: "regions", minzoom: REGION_FADE_START,
+          paint: { "line-color": token("selected"), "line-width": 2, "line-opacity": SELECTED_OPACITY },
+        },
         // Travel lines: a solid halo in the land colour under the dashed line, so the dashes stay
         // visible over a country filled in the same trip colour (e.g. two neighbouring stops).
         {
@@ -203,6 +229,24 @@ export class MapView {
           id: "arcs", type: "line", source: "arcs",
           layout: { "line-join": "round" },
           paint: { "line-color": token("stop"), "line-width": 1.5, "line-dasharray": [3, 1.5] },
+        },
+        // Country names, most important first; ones that would overlap are left out until there's room.
+        {
+          id: "labels", type: "symbol", source: "labels", minzoom: LABEL_FADE_START,
+          layout: {
+            "text-field": ["get", "name"],
+            "text-font": ["sans"],
+            "text-size": ["interpolate", ["linear"], ["zoom"], 2, 11, 6, 14],
+            "text-max-width": 7,
+            "text-padding": 4,
+            "symbol-sort-key": ["get", "rank"],
+          },
+          paint: {
+            "text-color": token("label"),
+            "text-halo-color": token("land"),
+            "text-halo-width": 1.2,
+            "text-opacity": ["interpolate", ["linear"], ["zoom"], LABEL_FADE_START, 0, LABEL_FADE_END, 1],
+          },
         },
         {
           id: "pins", type: "symbol", source: "pins",
@@ -277,6 +321,10 @@ export class MapView {
     this.map.setPaintProperty("region-line", "line-color", token("border"));
     this.map.setPaintProperty("country-outline", "line-color", fillColor(TRANSPARENT));
     this.map.setPaintProperty("country-trip-outline", "line-color", token("stop"));
+    this.map.setPaintProperty("country-selected", "line-color", token("selected"));
+    this.map.setPaintProperty("region-selected", "line-color", token("selected"));
+    this.map.setPaintProperty("labels", "text-color", token("label"));
+    this.map.setPaintProperty("labels", "text-halo-color", token("land"));
     this.map.setPaintProperty("arcs", "line-color", token("stop"));
     this.map.setPaintProperty("arcs-halo", "line-color", token("land"));
     for (const s of PIN_STATUSES) {
@@ -299,6 +347,15 @@ export class MapView {
     for (const id of this.outlined) this.map.setFeatureState({ source: "countries", id }, { outline: false });
     for (const id of isos) this.map.setFeatureState({ source: "countries", id }, { outline: true });
     this.outlined = isos;
+  }
+
+  /** Highlight the border of this country or state (or none), clearing the previous one. */
+  async setSelected(place: PlaceRef | null): Promise<void> {
+    await this.ready;
+    const source = (p: PlaceRef) => (p.kind === "region" ? "regions" : "countries");
+    if (this.selected) this.map.setFeatureState({ source: source(this.selected), id: this.selected.code }, { selected: false });
+    if (place) this.map.setFeatureState({ source: source(place), id: place.code }, { selected: true });
+    this.selected = place;
   }
 
   private async setColors(source: "countries" | "regions", colors: Record<string, ColorKey>): Promise<void> {
@@ -453,10 +510,9 @@ export class MapView {
   onPlaceClick(cb: (place: PlaceRef) => void): () => void {
     const layers = ["region-fill", "country-fill"];
     const click = (e: maplibregl.MapMouseEvent) => {
-      const statesShown = this.map.getZoom() >= REGION_CLICK_ZOOM;
-      const [region] = statesShown ? this.map.queryRenderedFeatures(e.point, { layers: ["region-fill"] }) : [];
+      const region = this.regionAt(e.point);
       const [country] = region ? [] : this.map.queryRenderedFeatures(e.point, { layers: ["country-fill"] });
-      if (typeof region?.id === "string") cb({ kind: "region", code: region.id });
+      if (region) cb({ kind: "region", code: region });
       else if (typeof country?.id === "string") cb({ kind: "country", code: country.id });
     };
     const enter = () => (this.map.getCanvas().style.cursor = "pointer");
@@ -475,8 +531,16 @@ export class MapView {
     };
   }
 
-  onMapClick(cb: (p: { lat: number; lon: number }) => void): () => void {
-    const click = (e: maplibregl.MapMouseEvent) => cb({ lat: e.lngLat.lat, lon: e.lngLat.wrap().lng });
+  /** The state drawn at this screen point, if states are shown there. */
+  private regionAt(point: maplibregl.PointLike): string | undefined {
+    if (this.map.getZoom() < REGION_CLICK_ZOOM) return undefined;
+    const [region] = this.map.queryRenderedFeatures(point, { layers: ["region-fill"] });
+    return typeof region?.id === "string" ? region.id : undefined;
+  }
+
+  /** Any click on the map, with the state under it when states are shown. */
+  onMapClick(cb: (p: { lat: number; lon: number; region?: string }) => void): () => void {
+    const click = (e: maplibregl.MapMouseEvent) => cb({ lat: e.lngLat.lat, lon: e.lngLat.wrap().lng, region: this.regionAt(e.point) });
     this.map.on("click", click);
     return () => this.map.off("click", click);
   }

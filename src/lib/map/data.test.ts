@@ -1,6 +1,6 @@
 import { describe, it, expect } from "vitest";
 import {
-  travelDataSchema, emptyData, dropUnknown, isHttpsUrl, setRegion, type TravelData,
+  travelDataSchema, emptyData, dropUnknown, isHttpsUrl, setCity, setRegion, type City, type TravelData,
 } from "./data";
 
 const sample: TravelData = {
@@ -58,6 +58,15 @@ describe("dropUnknown", () => {
     expect(Object.keys(out.countries)).toEqual(["JPN"]);
     expect(out.cities.map((c) => c.id)).toEqual(["b"]);
     expect(unknown).toEqual(["XXX"]);
+  });
+  it("keeps a city in an unknown state, without the state", () => {
+    const data: TravelData = {
+      ...emptyData(),
+      cities: [{ id: "a", name: "A", country: "JPN", region: "JP-13", lat: 0, lon: 0, status: "visited" }],
+    };
+    const { data: out, unknown } = dropUnknown(data, { countries: new Set(["JPN"]), regions: new Set() });
+    expect(out.cities.map((c) => [c.id, c.region])).toEqual([["a", undefined]]);
+    expect(unknown).toEqual(["JP-13"]);
   });
 });
 
@@ -129,5 +138,43 @@ describe("setRegion", () => {
     const out = setRegion(start, "BR-SP", null);
     expect(out.regions).toEqual({});
     expect(out.countries.BRA).toEqual({ status: "visited" });
+  });
+});
+
+describe("setCity", () => {
+  const sp: City = { id: "sp", name: "São Paulo", country: "BRA", region: "BR-SP", lat: -23.55, lon: -46.64, status: "visited" };
+
+  it("a visited city marks its state and country visited", () => {
+    const out = setCity(emptyData(), sp);
+    expect(out.cities).toEqual([sp]);
+    expect(out.regions).toEqual({ "BR-SP": { status: "visited" } });
+    expect(out.countries).toEqual({ BRA: { status: "visited" } });
+  });
+  it("raises a 'want' state and country, keeping their notes, and never lowers 'lived'", () => {
+    const start: TravelData = {
+      ...emptyData(),
+      regions: { "BR-SP": { status: "want", note: "museums" } },
+      countries: { BRA: { status: "lived" } },
+    };
+    const out = setCity(start, sp);
+    expect(out.regions["BR-SP"]).toEqual({ status: "visited", note: "museums" });
+    expect(out.countries.BRA).toEqual({ status: "lived" });
+  });
+  it("a city without a state still marks its country", () => {
+    const tokyo: City = { id: "t", name: "Tokyo", country: "JPN", lat: 35.68, lon: 139.69, status: "visited" };
+    const out = setCity(emptyData(), tokyo);
+    expect(out.regions).toEqual({});
+    expect(out.countries).toEqual({ JPN: { status: "visited" } });
+  });
+  it("a city you want to go to changes nothing else", () => {
+    const out = setCity(emptyData(), { ...sp, status: "want" });
+    expect(out.regions).toEqual({});
+    expect(out.countries).toEqual({});
+  });
+  it("updates an existing city in place, marking its state once it's been visited", () => {
+    const start = setCity(emptyData(), { ...sp, status: "want" });
+    const out = setCity(start, sp);
+    expect(out.cities).toEqual([sp]);
+    expect(out.regions["BR-SP"]).toEqual({ status: "visited" });
   });
 });

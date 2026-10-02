@@ -2,14 +2,20 @@ import { STATUSES, type CountryEntry, type ISO3, type Status, type TravelData } 
 import { regionsOf } from "./meta";
 import type { BBox } from "./geo";
 
+/** The 193 UN members plus its two observer states (the Vatican and Palestine). */
 export const TOTAL_COUNTRIES = 195;
 
-/** `sovereign` is false for territories and dependencies (Hong Kong, Greenland, Jersey…); they don't count toward totals. */
-export interface CountryMeta { iso: ISO3; name: string; continent: string; bbox: BBox; sovereign: boolean }
+/**
+ * `unState`: a UN member or observer state. Territories (Hong Kong, Greenland…) and places the UN doesn't list as
+ * states (Kosovo, Taiwan, Western Sahara) are drawn and can be marked, but don't count toward totals.
+ * `label` is where the name goes on the map; `labelRank` is how early it earns a spot (lower = sooner).
+ */
+export interface CountryMeta {
+  iso: ISO3; name: string; continent: string; bbox: BBox; unState: boolean; label: [number, number]; labelRank: number;
+}
 export type ColorKey = Status | "stop";
 
 const IGNORED_CONTINENTS = new Set(["Antarctica", "Seven seas (open ocean)"]);
-const MILESTONES = [10, 25, 50, 100];
 
 export function counts(d: TravelData): Record<Status, number> {
   const out = Object.fromEntries(STATUSES.map((s) => [s, 0])) as Record<Status, number>;
@@ -24,10 +30,10 @@ export function beenTo(d: TravelData): ISO3[] {
     .sort();
 }
 
-/** Been-to countries that count toward "N / 195" and badges: sovereign states only. */
+/** Been-to countries that count toward "N / 195": UN member and observer states only. */
 export function countedBeenTo(d: TravelData, meta: CountryMeta[]): ISO3[] {
-  const sovereign = new Set(meta.filter((m) => m.sovereign).map((m) => m.iso));
-  return beenTo(d).filter((iso) => sovereign.has(iso));
+  const unStates = new Set(meta.filter((m) => m.unState).map((m) => m.iso));
+  return beenTo(d).filter((iso) => unStates.has(iso));
 }
 
 export interface ContinentProgress { continent: string; been: number; total: number }
@@ -36,23 +42,13 @@ export function continentProgress(d: TravelData, meta: CountryMeta[]): Continent
   const been = new Set(beenTo(d));
   const byContinent = new Map<string, ContinentProgress>();
   for (const m of meta) {
-    if (!m.sovereign || IGNORED_CONTINENTS.has(m.continent)) continue;
+    if (!m.unState || IGNORED_CONTINENTS.has(m.continent)) continue;
     const p = byContinent.get(m.continent) ?? { continent: m.continent, been: 0, total: 0 };
     p.total++;
     if (been.has(m.iso)) p.been++;
     byContinent.set(m.continent, p);
   }
   return [...byContinent.values()].sort((a, b) => a.continent.localeCompare(b.continent));
-}
-
-export function badges(d: TravelData, meta: CountryMeta[]): string[] {
-  const n = countedBeenTo(d, meta).length;
-  return [
-    ...MILESTONES.filter((m) => n >= m).map((m) => `${m} countries`),
-    ...continentProgress(d, meta)
-      .filter((p) => p.total > 0 && p.been === p.total)
-      .map((p) => `Every country in ${p.continent}`),
-  ];
 }
 
 export function yearRange(d: TravelData): [number, number] | null {

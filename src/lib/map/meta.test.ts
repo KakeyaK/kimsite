@@ -1,5 +1,6 @@
 import { describe, it, expect } from "vitest";
 import { COUNTRIES, KNOWN_ISO, KNOWN_REGIONS, REGIONS, countryName, regionByCode, regionsOf, searchCountries, searchRegions } from "./meta";
+import { TOTAL_COUNTRIES } from "./stats";
 
 describe("country meta", () => {
   it("uses ADM0_A3 so France and Norway have real codes", () => {
@@ -31,13 +32,19 @@ describe("generated data (review fixes)", () => {
     expect(cities.every((c) => KNOWN_ISO.has(c[1]))).toBe(true);
   });
 
-  it("flags sovereign states so territories don't count toward totals", () => {
+  it("counts exactly the UN's 195 member and observer states", () => {
     const by = new Map(COUNTRIES.map((c) => [c.iso, c]));
-    for (const iso of ["FRA", "NOR", "AUS", "JPN", "VAT", "PSX", "USA", "CHN"]) expect(by.get(iso)?.sovereign, iso).toBe(true);
-    for (const iso of ["HKG", "GRL", "ATC", "FRO", "JEY", "PRI", "ATA"]) expect(by.get(iso)?.sovereign, iso).toBe(false);
-    const n = COUNTRIES.filter((c) => c.sovereign).length;
-    expect(n).toBeGreaterThanOrEqual(193);
-    expect(n).toBeLessThanOrEqual(200);
+    for (const iso of ["FRA", "NOR", "AUS", "JPN", "VAT", "PSX", "USA", "CHN", "CYP", "SOM"]) expect(by.get(iso)?.unState, iso).toBe(true);
+    // territories, and places the UN doesn't list as states: drawn, but not counted
+    for (const iso of ["HKG", "GRL", "ATC", "FRO", "JEY", "PRI", "ATA", "KOS", "TWN", "SAH"]) expect(by.get(iso)?.unState, iso).toBe(false);
+    expect(COUNTRIES.filter((c) => c.unState)).toHaveLength(TOTAL_COUNTRIES);
+  });
+
+  it("draws unrecognised states as part of their UN country", () => {
+    for (const iso of ["CYN", "SOL"]) expect(KNOWN_ISO.has(iso), iso).toBe(false);
+    expect(countryName("FLK")).toBe("Falkland Islands (Malvinas)");
+    // Crimea and Sevastopol are Ukraine's, whose states aren't tracked; Natural Earth files them under Russia
+    for (const code of ["UA-43", "UA-40"]) expect(regionByCode(code), code).toBeUndefined();
   });
 });
 

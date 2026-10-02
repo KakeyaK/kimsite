@@ -1,17 +1,17 @@
 import { describe, it, expect } from "vitest";
 import {
-  counts, beenTo, countedBeenTo, continentProgress, badges, yearRange, atYear,
+  counts, beenTo, countedBeenTo, continentProgress, yearRange, atYear,
   statusColors, regionProgress, regionColors, type CountryMeta,
 } from "./stats";
 import type { TravelData } from "./data";
 
 const meta: CountryMeta[] = [
-  { iso: "BRA", name: "Brazil", continent: "South America", bbox: [0, 0, 1, 1], sovereign: true },
-  { iso: "ARG", name: "Argentina", continent: "South America", bbox: [0, 0, 1, 1], sovereign: true },
-  { iso: "JPN", name: "Japan", continent: "Asia", bbox: [0, 0, 1, 1], sovereign: true },
-  { iso: "KOR", name: "South Korea", continent: "Asia", bbox: [0, 0, 1, 1], sovereign: true },
-  { iso: "ATA", name: "Antarctica", continent: "Antarctica", bbox: [0, 0, 1, 1], sovereign: false },
-  { iso: "FLK", name: "Falkland Is.", continent: "South America", bbox: [0, 0, 1, 1], sovereign: false },
+  { iso: "BRA", name: "Brazil", continent: "South America", bbox: [0, 0, 1, 1], unState: true, label: [0, 0], labelRank: 1 },
+  { iso: "ARG", name: "Argentina", continent: "South America", bbox: [0, 0, 1, 1], unState: true, label: [0, 0], labelRank: 1 },
+  { iso: "JPN", name: "Japan", continent: "Asia", bbox: [0, 0, 1, 1], unState: true, label: [0, 0], labelRank: 1 },
+  { iso: "KOR", name: "South Korea", continent: "Asia", bbox: [0, 0, 1, 1], unState: true, label: [0, 0], labelRank: 1 },
+  { iso: "ATA", name: "Antarctica", continent: "Antarctica", bbox: [0, 0, 1, 1], unState: false, label: [0, 0], labelRank: 1 },
+  { iso: "FLK", name: "Falkland Is.", continent: "South America", bbox: [0, 0, 1, 1], unState: false, label: [0, 0], labelRank: 1 },
 ];
 
 const d: TravelData = {
@@ -37,34 +37,20 @@ describe("counts / beenTo", () => {
   });
 });
 
-describe("continentProgress / badges", () => {
+describe("continentProgress", () => {
   it("counts been-to per continent and skips Antarctica", () => {
     expect(continentProgress(d, meta)).toEqual([
       { continent: "Asia", been: 1, total: 2 },
       { continent: "South America", been: 2, total: 2 },
     ]);
   });
-  it("awards a badge for a completed continent", () => {
-    expect(badges(d, meta)).toContain("Every country in South America");
-    expect(badges(d, meta)).not.toContain("Every country in Asia");
-  });
   it("leaves territories out of continent totals, so a continent can be completed", () => {
     // FLK is a territory in South America; BRA + ARG must still complete the continent
     expect(continentProgress(d, meta).find((p) => p.continent === "South America")).toEqual({ continent: "South America", been: 2, total: 2 });
   });
-  it("countedBeenTo only counts sovereign states", () => {
+  it("countedBeenTo only counts UN states", () => {
     const withTerritory: TravelData = { ...d, countries: { ...d.countries, FLK: { status: "visited" } } };
     expect(countedBeenTo(withTerritory, meta)).toEqual(["ARG", "BRA", "JPN"]);
-  });
-  it("awards milestone badges", () => {
-    const many: TravelData = { version: 1, regions: {}, cities: [], countries: {} };
-    const big: CountryMeta[] = [];
-    for (let i = 0; i < 10; i++) {
-      const iso = `A${String.fromCharCode(65 + i)}A`;
-      many.countries[iso] = { status: "visited" };
-      big.push({ iso, name: iso, continent: "Asia", bbox: [0, 0, 1, 1], sovereign: true });
-    }
-    expect(badges(many, big)).toContain("10 countries");
   });
 });
 

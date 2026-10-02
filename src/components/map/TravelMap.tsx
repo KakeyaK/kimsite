@@ -1,11 +1,11 @@
 import { useEffect, useMemo, useRef, useState } from "preact/hooks";
-import { emptyData, setRegion, type City, type CountryEntry, type ISO3, type TravelData } from "@lib/map/data";
+import { emptyData, setCity, setRegion, type City, type CountryEntry, type ISO3, type TravelData } from "@lib/map/data";
 import { createStore } from "@lib/map/storage";
 import { regionColors, statusColors } from "@lib/map/stats";
-import { addCity, cityId, customCityId } from "@lib/map/cities";
+import { customCityId } from "@lib/map/cities";
 import { countryName, regionByCode } from "@lib/map/meta";
 import type { PlaceRef } from "@lib/map/mapView";
-import type { Place } from "@lib/map/places";
+import { markPicked, type Place } from "@lib/map/places";
 import type { Stop } from "@lib/map/stops";
 import { cn } from "@lib/utils";
 import { useMapView } from "./useMapView";
@@ -15,6 +15,7 @@ import { RegionList } from "./RegionList";
 import { CityList } from "./CityList";
 import { StatsStrip } from "./StatsStrip";
 import { ImportExport } from "./ImportExport";
+import { MapNotes } from "./MapNotes";
 import { InviteBuilder } from "./InviteBuilder";
 import { btn, btnActive, container, mapBox, overlay } from "./ui";
 
@@ -49,23 +50,17 @@ export default function TravelMap() {
   }
 
   function upsertCity(city: City) {
-    update({ ...data, cities: data.cities.map((c) => (c.id === city.id ? city : c)) });
+    update(setCity(data, city));
   }
 
   function removeCity(id: string) {
     update({ ...data, cities: data.cities.filter((c) => c.id !== id) });
   }
 
-  /** Search result: countries and states open their panel; a city is added as "been" (its country too, if new). */
+  /** Search result: marks it "been" (see `markPicked`) and opens its panel: a state's, or else its country's. */
   function pickPlace(place: Place) {
-    if (place.kind === "region") return setSelected({ kind: "region", code: place.code });
-    if (place.kind === "city") {
-      const { name, iso, lat, lon } = place;
-      const cities = addCity(data.cities, { id: cityId(iso, name, lat, lon), name, country: iso, lat, lon, status: "visited" });
-      const countries = data.countries[iso] ? data.countries : { ...data.countries, [iso]: { status: "visited" as const } };
-      update({ ...data, countries, cities });
-    }
-    setSelected({ kind: "country", code: place.iso });
+    update(markPicked(data, place));
+    setSelected(place.kind === "region" ? { kind: "region", code: place.code } : { kind: "country", code: place.iso });
   }
 
   /** Opens an empty trip planner (or scrolls to the one already open, keeping what's in it). */
@@ -83,11 +78,15 @@ export default function TravelMap() {
     void view?.setPins(data.cities);
   }, [view, data.cities]);
 
+  useEffect(() => {
+    void view?.setSelected(selected);
+  }, [view, selected]);
+
   useEffect(() => (view ? view.onPlaceClick((place) => { if (!pinForRef.current) setSelected(place); }) : undefined), [view]);
 
   useEffect(() => {
     if (!view) return;
-    return view.onMapClick(({ lat, lon }) => {
+    return view.onMapClick(({ lat, lon, region }) => {
       const iso = pinForRef.current;
       if (!iso) return;
       setPinFor(null);
@@ -96,7 +95,9 @@ export default function TravelMap() {
       // Functional update: this handler is registered once and would otherwise see stale `data`.
       setData((current) => {
         const pin: City = { id: customCityId(), name: name.slice(0, 200), country: iso, lat, lon, status: "visited", custom: true };
-        const next = { ...current, cities: [...current.cities, pin] };
+        // Only a state of the pin's own country (a click just over the border lands in a neighbour's).
+        if (region && regionByCode(region)?.country === iso) pin.region = region;
+        const next = setCity(current, pin);
         store.save(next);
         return next;
       });
@@ -185,6 +186,7 @@ export default function TravelMap() {
         )}
         <StatsStrip data={data} />
         <ImportExport data={data} onImport={update} onClear={() => { store.clear(); setData(emptyData()); }} />
+        <MapNotes />
       </div>
     </div>
   );

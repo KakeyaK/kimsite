@@ -1,9 +1,9 @@
 import type { ISO3, TravelData } from "@lib/map/data";
-import { regionsOf } from "@lib/map/meta";
+import { regionNoun, regionsOf } from "@lib/map/meta";
 import { regionProgress } from "@lib/map/stats";
 import { Swatch } from "./Swatch";
 
-/** A country's states with their status, e.g. "12 / 27 states". Renders nothing for countries without states. */
+/** A country's states (or nations, provinces…) with their status, e.g. "12 / 27 states". Renders nothing for countries without them. */
 export function RegionList({ iso, data, onPick }: { iso: ISO3; data: TravelData; onPick: (code: string) => void }) {
   const states = regionsOf(iso);
   if (states.length === 0) return null;
@@ -12,9 +12,9 @@ export function RegionList({ iso, data, onPick }: { iso: ISO3; data: TravelData;
   return (
     <div class="space-y-2 text-sm">
       <p class="font-semibold text-black dark:text-white">
-        {been} / {total} states
+        {been} / {total} {regionNoun(iso)}
       </p>
-      <ul class="grid grid-cols-2 gap-x-3 gap-y-0.5" aria-label="States">
+      <ul class="grid grid-cols-2 gap-x-3 gap-y-0.5" aria-label={regionNoun(iso)}>
         {states.map((r) => {
           const entry = data.regions[r.code];
           return (

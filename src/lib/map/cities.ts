@@ -1,7 +1,8 @@
 import type { City, ISO3 } from "./data";
 import { fold } from "./search";
 
-export type CityRow = [name: string, iso3: ISO3, lat: number, lon: number, pop: number];
+/** `region` is the ISO 3166-2 code of its state, for countries we track states for. */
+export type CityRow = [name: string, iso3: ISO3, lat: number, lon: number, pop: number, region?: string];
 
 let cache: Promise<CityRow[]> | null = null;
 

@@ -7,6 +7,7 @@ import { createStore } from "@lib/map/storage";
 import { cn } from "@lib/utils";
 import { useMapView } from "./useMapView";
 import { StatsStrip } from "./StatsStrip";
+import { MapNotes } from "./MapNotes";
 import { TimelineSlider } from "./TimelineSlider";
 import { btn, container, mapBox, overlay, STATUS_LABEL } from "./ui";
 
@@ -22,6 +23,10 @@ export default function KimMap({ data }: { data: TravelData }) {
     void view?.setRegionColors(regionColors(shown));
     void view?.setPins(shown.cities);
   }, [view, shown]);
+
+  useEffect(() => {
+    void view?.setSelected(selected);
+  }, [view, selected]);
 
   useEffect(() => (view ? view.onPlaceClick(setSelected) : undefined), [view]);
 
@@ -66,6 +71,7 @@ export default function KimMap({ data }: { data: TravelData }) {
           <button type="button" class={btn} onClick={startOwn}>Start my own map from this</button>
           <a class={btn} href="/projects/map">Make my own map</a>
         </div>
+        <MapNotes />
       </div>
     </div>
   );

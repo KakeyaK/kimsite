@@ -3,7 +3,7 @@ import PageLayout from "@layouts/PageLayout.astro";
 import InvitePage from "@components/map/InvitePage";
 ---
 
-<PageLayout title="You're invited" description="A trip invite from a friend. Open it to see where you're going.">
+<PageLayout title="You're invited" description="A trip invite from a friend. Open it to see where you're going." class="pt-20 pb-10">
   <!-- No content column: the globe spans the full page width. -->
   <InvitePage client:only="preact">
     <p slot="fallback" class="mx-auto max-w-screen-lg px-5 text-sm">Unfolding your invite…</p>
