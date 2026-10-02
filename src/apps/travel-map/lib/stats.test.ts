@@ -1,0 +1,89 @@
+import { describe, it, expect } from "vitest";
+import {
+  counts, beenTo, countedBeenTo, continentProgress, yearRange, atYear,
+  statusColors, regionProgress, regionColors, type CountryMeta,
+} from "./stats";
+import type { TravelData } from "./data";
+
+const meta: CountryMeta[] = [
+  { iso: "BRA", name: "Brazil", continent: "South America", bbox: [0, 0, 1, 1], unState: true, label: [0, 0], labelRank: 1 },
+  { iso: "ARG", name: "Argentina", continent: "South America", bbox: [0, 0, 1, 1], unState: true, label: [0, 0], labelRank: 1 },
+  { iso: "JPN", name: "Japan", continent: "Asia", bbox: [0, 0, 1, 1], unState: true, label: [0, 0], labelRank: 1 },
+  { iso: "KOR", name: "South Korea", continent: "Asia", bbox: [0, 0, 1, 1], unState: true, label: [0, 0], labelRank: 1 },
+  { iso: "ATA", name: "Antarctica", continent: "Antarctica", bbox: [0, 0, 1, 1], unState: false, label: [0, 0], labelRank: 1 },
+  { iso: "FLK", name: "Falkland Is.", continent: "South America", bbox: [0, 0, 1, 1], unState: false, label: [0, 0], labelRank: 1 },
+];
+
+const d: TravelData = {
+  version: 1, regions: {},
+  countries: {
+    BRA: { status: "lived", years: [2000] },
+    ARG: { status: "visited", years: [2015, 2010] },
+    JPN: { status: "visited", years: [2023] },
+    KOR: { status: "want" },
+  },
+};
+
+describe("counts / beenTo", () => {
+  it("counts each status", () => {
+    expect(counts(d)).toEqual({ visited: 2, lived: 1, want: 1 });
+  });
+  it("beenTo is visited + lived, sorted", () => {
+    expect(beenTo(d)).toEqual(["ARG", "BRA", "JPN"]);
+  });
+});
+
+describe("continentProgress", () => {
+  it("counts been-to per continent and skips Antarctica", () => {
+    expect(continentProgress(d, meta)).toEqual([
+      { continent: "Asia", been: 1, total: 2 },
+      { continent: "South America", been: 2, total: 2 },
+    ]);
+  });
+  it("leaves territories out of continent totals, so a continent can be completed", () => {
+    // FLK is a territory in South America; BRA + ARG must still complete the continent
+    expect(continentProgress(d, meta).find((p) => p.continent === "South America")).toEqual({ continent: "South America", been: 2, total: 2 });
+  });
+  it("countedBeenTo only counts UN states", () => {
+    const withTerritory: TravelData = { ...d, countries: { ...d.countries, FLK: { status: "visited" } } };
+    expect(countedBeenTo(withTerritory, meta)).toEqual(["ARG", "BRA", "JPN"]);
+  });
+});
+
+describe("timeline", () => {
+  it("yearRange covers country years", () => {
+    expect(yearRange(d)).toEqual([2000, 2023]);
+  });
+  it("yearRange is null without years", () => {
+    expect(yearRange({ version: 1, regions: {}, countries: { BRA: { status: "visited" } } })).toBeNull();
+  });
+  it("atYear keeps places first reached on or before the year, never wishes", () => {
+    const at = atYear(d, 2012);
+    expect(Object.keys(at.countries).sort()).toEqual(["ARG", "BRA"]);
+    expect(Object.keys(atYear(d, 2023).countries).sort()).toEqual(["ARG", "BRA", "JPN"]);
+  });
+});
+
+describe("statusColors", () => {
+  it("maps each country to its status", () => {
+    expect(statusColors(d)).toEqual({ BRA: "lived", ARG: "visited", JPN: "visited", KOR: "want" });
+  });
+});
+
+describe("regions", () => {
+  const withStates: TravelData = {
+    ...d,
+    regions: { "BR-SP": { status: "lived", years: [2000] }, "BR-BA": { status: "visited", years: [2015] }, "BR-AM": { status: "want" } },
+  };
+  it("regionProgress counts been-to states out of all of the country's states", () => {
+    expect(regionProgress(withStates, "BRA")).toEqual({ been: 2, total: 27 });
+    expect(regionProgress(d, "JPN")).toEqual({ been: 0, total: 0 });
+  });
+  it("atYear filters states like countries", () => {
+    expect(Object.keys(atYear(withStates, 2010).regions)).toEqual(["BR-SP"]);
+    expect(Object.keys(atYear(withStates, 2020).regions).sort()).toEqual(["BR-BA", "BR-SP"]);
+  });
+  it("regionColors maps each state to its status", () => {
+    expect(regionColors(withStates)).toEqual({ "BR-SP": "lived", "BR-BA": "visited", "BR-AM": "want" });
+  });
+});

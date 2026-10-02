@@ -1,0 +1,17 @@
+---
+import PageLayout from "@layouts/PageLayout.astro";
+import TravelMap from "@apps/travel-map/components/TravelMap";
+---
+
+<PageLayout title="Travel map" description="Mark the countries you've visited, lived in, and want to see, then invite friends on a trip." class="pt-20 pb-10">
+  <div class="animate mx-auto mb-6 max-w-screen-lg space-y-1 px-5">
+    <h1 class="text-2xl font-semibold text-black dark:text-white">Travel map</h1>
+    <p class="text-sm">
+      Your map is saved in this browser only. Curious where I've been? <a class="underline underline-offset-2" href="/projects/map/kim">See my map</a>.
+    </p>
+  </div>
+  <!-- Outside the content column: the map spans the full page width. -->
+  <TravelMap client:only="preact">
+    <p slot="fallback" class="mx-auto max-w-screen-lg px-5 text-sm">Loading map…</p>
+  </TravelMap>
+</PageLayout>
