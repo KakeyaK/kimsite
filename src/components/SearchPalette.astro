@@ -1,0 +1,220 @@
+---
+import Search from "@components/icons/Search.astro";
+---
+
+<dialog
+  id="search-palette"
+  aria-label="Search the site"
+  class="m-0 mx-auto mt-[15vh] w-[calc(100%-2rem)] max-w-xl overflow-hidden rounded-xl border border-black/15 bg-stone-100 p-0 text-black/50 shadow-2xl backdrop:bg-black/30 backdrop:backdrop-blur-sm dark:border-white/20 dark:bg-stone-900 dark:text-white/75 dark:backdrop:bg-black/40"
+>
+  <div
+    class="flex items-center gap-3 border-b border-black/15 px-4 dark:border-white/20"
+  >
+    <Search class="shrink-0" />
+    <input
+      id="search-input"
+      type="text"
+      role="combobox"
+      aria-label="Search the site"
+      aria-expanded="true"
+      aria-controls="search-results"
+      aria-autocomplete="list"
+      placeholder="Search posts, projects and pages"
+      autocomplete="off"
+      autocapitalize="off"
+      spellcheck="false"
+      class="min-w-0 flex-1 bg-transparent py-4 text-black placeholder:text-black/40 focus:outline-none dark:text-white dark:placeholder:text-white/40"
+    />
+    <kbd
+      class="shrink-0 rounded border border-black/15 px-1.5 py-0.5 font-sans text-xs dark:border-white/20"
+    >
+      esc
+    </kbd>
+  </div>
+  <div
+    id="search-results"
+    role="listbox"
+    aria-label="Results"
+    class="p-2 empty:hidden"
+  >
+  </div>
+  <p
+    id="search-status"
+    aria-live="polite"
+    class="px-4 py-6 text-center text-sm empty:hidden"
+  >
+  </p>
+</dialog>
+
+<script>
+  import { searchItems, type SearchItem } from "@lib/search";
+
+  // Fetched the first time the palette opens, then kept across page navigations
+  let index: Promise<SearchItem[]> | undefined;
+  let controller: AbortController | undefined;
+
+  const MAX_RESULTS = 3;
+
+  function loadIndex() {
+    index ??= fetch("/search.json")
+      .then((response) => {
+        if (!response.ok) throw new Error(`search.json: ${response.status}`);
+        return response.json() as Promise<SearchItem[]>;
+      })
+      .catch((error) => {
+        index = undefined;
+        throw error;
+      });
+    return index;
+  }
+
+  function createRow(item: SearchItem, id: string) {
+    const row = document.createElement("a");
+    row.id = id;
+    row.href = item.href;
+    row.setAttribute("role", "option");
+    row.setAttribute("aria-selected", "false");
+    row.tabIndex = -1;
+    row.className =
+      "flex items-center gap-4 rounded-lg px-3 py-2 aria-selected:bg-black/5 aria-selected:text-black dark:aria-selected:bg-white/10 dark:aria-selected:text-white";
+
+    const text = document.createElement("div");
+    text.className = "min-w-0 flex-1";
+    const title = document.createElement("div");
+    title.className = "truncate font-semibold";
+    title.textContent = item.title;
+    text.append(title);
+    if (item.description) {
+      const description = document.createElement("div");
+      description.className = "truncate text-sm";
+      description.textContent = item.description;
+      text.append(description);
+    }
+
+    const kind = document.createElement("div");
+    kind.className = "shrink-0 text-xs";
+    kind.textContent = item.kind;
+
+    row.append(text, kind);
+    return row;
+  }
+
+  function setup() {
+    controller?.abort();
+
+    const dialog = document.getElementById("search-palette");
+    const input = document.getElementById("search-input");
+    const results = document.getElementById("search-results");
+    const status = document.getElementById("search-status");
+    if (
+      !(dialog instanceof HTMLDialogElement) ||
+      !(input instanceof HTMLInputElement) ||
+      !results ||
+      !status
+    ) {
+      return;
+    }
+
+    controller = new AbortController();
+    const { signal } = controller;
+
+    let items: SearchItem[] = [];
+    let rows: HTMLAnchorElement[] = [];
+    let selected = 0;
+
+    const select = (i: number) => {
+      if (rows.length === 0) {
+        input.removeAttribute("aria-activedescendant");
+        return;
+      }
+      selected = (i + rows.length) % rows.length;
+      rows.forEach((row, j) =>
+        row.setAttribute("aria-selected", String(j === selected)),
+      );
+      input.setAttribute("aria-activedescendant", rows[selected].id);
+    };
+
+    const render = () => {
+      rows = searchItems(items, input.value)
+        .slice(0, MAX_RESULTS)
+        .map((item, i) => createRow(item, `search-result-${i}`));
+      results.replaceChildren(...rows);
+      if (items.length > 0) {
+        status.textContent = rows.length === 0 ? "No results" : "";
+      }
+      select(0);
+    };
+
+    const open = async () => {
+      if (dialog.open) return;
+      input.value = "";
+      dialog.showModal();
+      render();
+      if (items.length > 0) return;
+      try {
+        items = await loadIndex();
+      } catch {
+        status.textContent = "Search is unavailable right now.";
+        return;
+      }
+      render();
+    };
+
+    document.addEventListener(
+      "keydown",
+      (e) => {
+        // Shift+Esc types nothing, so it is safe inside text fields too
+        if (e.key !== "Escape" || !e.shiftKey) return;
+        if (e.ctrlKey || e.metaKey || e.altKey || e.repeat) return;
+        e.preventDefault();
+        if (dialog.open) dialog.close();
+        else open();
+      },
+      { signal },
+    );
+
+    document
+      .getElementById("search-button")
+      ?.addEventListener("click", open, { signal });
+
+    input.addEventListener("input", render, { signal });
+    input.addEventListener(
+      "keydown",
+      (e) => {
+        if (e.key === "ArrowDown" || e.key === "ArrowUp") {
+          e.preventDefault();
+          select(selected + (e.key === "ArrowDown" ? 1 : -1));
+        } else if (e.key === "Enter") {
+          e.preventDefault();
+          rows[selected]?.click();
+        }
+      },
+      { signal },
+    );
+
+    // pointermove, not pointerenter: results appearing under a still pointer
+    // must not steal the selection from the keyboard
+    results.addEventListener(
+      "pointermove",
+      (e) => {
+        const row = (e.target as Element).closest<HTMLAnchorElement>("a");
+        const i = row ? rows.indexOf(row) : -1;
+        if (i !== -1 && i !== selected) select(i);
+      },
+      { signal },
+    );
+
+    dialog.addEventListener(
+      "click",
+      (e) => {
+        // A click on the dialog itself is a click on the backdrop; a click on
+        // a result closes the palette and lets the link navigate
+        const onResult = (e.target as Element).closest("#search-results a");
+        if (e.target === dialog || onResult) dialog.close();
+      },
+      { signal },
+    );
+  }
+
+  document.addEventListener("astro:page-load", setup);
+</script>
