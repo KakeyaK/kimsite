@@ -25,7 +25,17 @@ function rehypeExternalLinks() {
 
 export default defineConfig({
   site: "https://www.kakeya.kim/",
-  integrations: [mdx(), sitemap(), tailwind(), preact()],
+  integrations: [
+    mdx(),
+    // Leave out app previews (only shown inside iframes) and the old
+    // /projects/map addresses (redirects to /sandbox/travel-map)
+    sitemap({
+      filter: (page) =>
+        !page.endsWith("/preview/") && !page.includes("/projects/map"),
+    }),
+    tailwind(),
+    preact(),
+  ],
   markdown: {
     rehypePlugins: [rehypeExternalLinks],
   },

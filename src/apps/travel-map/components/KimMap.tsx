@@ -35,7 +35,7 @@ export default function KimMap({ data }: { data: TravelData }) {
     const hasMine = Object.keys(mine.countries).length > 0;
     if (hasMine && !confirm("Replace your own map with a copy of mine?")) return;
     store.save(structuredClone(data));
-    window.location.href = "/projects/map";
+    window.location.href = "/sandbox/travel-map";
   }
 
   const entry = selected && (selected.kind === "region" ? data.regions : data.countries)[selected.code];
@@ -68,7 +68,7 @@ export default function KimMap({ data }: { data: TravelData }) {
         <StatsStrip data={shown} />
         <div class="flex flex-wrap gap-2">
           <button type="button" class={btn} onClick={startOwn}>Start my own map from this</button>
-          <a class={btn} href="/projects/map">Make my own map</a>
+          <a class={btn} href="/sandbox/travel-map">Make my own map</a>
         </div>
         <MapNotes />
       </div>

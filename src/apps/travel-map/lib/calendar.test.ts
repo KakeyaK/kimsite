@@ -2,7 +2,7 @@ import { describe, it, expect } from "vitest";
 import { googleCalendarUrl } from "./calendar";
 import type { Invite } from "./invite";
 
-const page = "https://www.kakeya.kim/projects/map/invite#i=abc";
+const page = "https://www.kakeya.kim/sandbox/travel-map/invite#i=abc";
 const base: Invite = { v: 1, from: "Kim", stops: [{ n: "Kyoto", c: "JPN", la: 35.01, lo: 135.77 }, "KOR"], date: "2027-04-10", end: "2027-04-18" };
 const params = (url: string | null) => new URL(url!).searchParams;
 

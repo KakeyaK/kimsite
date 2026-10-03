@@ -81,7 +81,7 @@ describe("parseHash", () => {
 describe("urls", () => {
   it("builds invite URLs that parse back", () => {
     const u = new URL(inviteUrl("https://www.kakeya.kim", base));
-    expect(u.pathname).toBe("/projects/map/invite");
+    expect(u.pathname).toBe("/sandbox/travel-map/invite");
     expect(decodeInvite(parseHash(u.hash) ?? "", known)?.value).toEqual(base);
   });
 });

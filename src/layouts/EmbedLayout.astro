@@ -1,0 +1,23 @@
+---
+import Head from "@components/Head.astro";
+
+// A bare page meant to be shown inside an iframe (e.g. a sandbox card's
+// preview): site fonts and theme, but no header, footer or scrollbars.
+type Props = {
+  title: string;
+  description: string;
+};
+
+const { title, description } = Astro.props;
+---
+
+<!doctype html>
+<html lang="en" class="overflow-hidden">
+  <head>
+    <Head title={title} description={description} />
+    <meta name="robots" content="noindex" />
+  </head>
+  <body class="overflow-hidden">
+    <slot />
+  </body>
+</html>

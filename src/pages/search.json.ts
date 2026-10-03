@@ -1,10 +1,10 @@
 import { getCollection } from "astro:content";
-import { BLOG, HOME, PROJECTS } from "@consts";
+import { BLOG, HOME, PROJECTS, SANDBOX } from "@consts";
 import { isBlogFolderEntry, isBlogPostEntry } from "@lib/blogEntries";
 import type { SearchItem } from "@lib/search";
 
 // The index behind the search palette (SearchPalette.astro): sections first,
-// then blog folders, blog posts and projects.
+// then blog folders, blog posts, projects and sandbox apps.
 export async function GET() {
   const blog = (await getCollection("blog")).filter(
     (entry) => !entry.data.draft,
@@ -14,6 +14,9 @@ export async function GET() {
     .sort((a, b) => b.data.date.valueOf() - a.data.date.valueOf());
   const projects = (await getCollection("projects"))
     .filter((project) => !project.data.draft)
+    .sort((a, b) => b.data.date.valueOf() - a.data.date.valueOf());
+  const apps = (await getCollection("sandbox"))
+    .filter((app) => !app.data.draft)
     .sort((a, b) => b.data.date.valueOf() - a.data.date.valueOf());
 
   // Same folders that blog/[...slug].astro builds routes for: every folder
@@ -54,6 +57,12 @@ export async function GET() {
       href: "/projects",
       kind: "Page",
     },
+    {
+      title: SANDBOX.TITLE,
+      description: SANDBOX.DESCRIPTION,
+      href: "/sandbox",
+      kind: "Page",
+    },
     ...Array.from(folderSlugs)
       .sort()
       .map((slug) => ({
@@ -70,20 +79,20 @@ export async function GET() {
       kind: "Post" as const,
       path: blogPath(post.slug),
     })),
-    ...projects.flatMap((project) => {
-      const { title, description, demoURL } = project.data;
-      const entry = {
-        title,
-        description,
-        href: `/projects/${project.slug}`,
-        kind: "Project" as const,
-        path: PROJECTS.TITLE,
-      };
-      // A demo hosted on this site (e.g. the travel map) is a page of its own
-      return demoURL?.startsWith("/")
-        ? [entry, { ...entry, href: demoURL, kind: "App" as const }]
-        : [entry];
-    }),
+    ...projects.map((project) => ({
+      title: project.data.title,
+      description: project.data.description,
+      href: `/projects/${project.slug}`,
+      kind: "Project" as const,
+      path: PROJECTS.TITLE,
+    })),
+    ...apps.map((app) => ({
+      title: app.data.title,
+      description: app.data.description,
+      href: `/sandbox/${app.slug}`,
+      kind: "App" as const,
+      path: SANDBOX.TITLE,
+    })),
   ];
 
   return new Response(JSON.stringify(items), {

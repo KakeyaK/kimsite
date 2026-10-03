@@ -1,0 +1,31 @@
+---
+import { getCollection } from "astro:content";
+import PageLayout from "@layouts/PageLayout.astro";
+import Container from "@components/Container.astro";
+import SandboxCard from "@components/SandboxCard.astro";
+import { SANDBOX } from "@consts";
+
+const apps = (await getCollection("sandbox"))
+  .filter((app) => !app.data.draft)
+  .sort((a, b) => b.data.date.valueOf() - a.data.date.valueOf());
+---
+
+<PageLayout title={SANDBOX.TITLE} description={SANDBOX.DESCRIPTION}>
+  <Container class="max-w-screen-lg">
+    <div class="space-y-10">
+      <div class="animate space-y-1">
+        <div class="font-semibold text-black dark:text-white">Sandbox</div>
+        <p class="text-sm">{SANDBOX.DESCRIPTION}</p>
+      </div>
+      <ul class="animate grid grid-cols-1 items-start gap-4 sm:grid-cols-2 lg:grid-cols-3">
+        {
+          apps.map((app) => (
+            <li>
+              <SandboxCard entry={app} />
+            </li>
+          ))
+        }
+      </ul>
+    </div>
+  </Container>
+</PageLayout>
