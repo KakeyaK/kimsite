@@ -106,7 +106,7 @@ export function InviteView({ invite, unknown }: { invite: Invite; unknown: strin
                   📌 Add to my map as "Want to go"
                 </button>
               )}
-              <a class={btn} href="/projects/map">Open my map</a>
+              <a class={btn} href="/sandbox/travel-map">Open my map</a>
             </div>
             {calendarUrl && invite.email && (
               <p class="text-xs">Saving the event in Google Calendar will offer to send {invite.from ?? "the inviter"} an invitation.</p>

@@ -1,0 +1,18 @@
+---
+import PageLayout from "@layouts/PageLayout.astro";
+import KimMap from "@apps/travel-map/components/KimMap";
+import { loadKimData } from "@apps/travel-map/data/kim";
+
+const data = loadKimData();
+---
+
+<PageLayout title="Kim's travel map" description="Where I've been, lived, and want to go." class="pt-20 pb-10">
+  <div class="animate mx-auto mb-6 max-w-screen-lg space-y-1 px-5">
+    <h1 class="text-2xl font-semibold text-black dark:text-white">Where I've been</h1>
+    <p class="text-sm">Drag the timeline to watch the map fill in. <a class="underline underline-offset-2" href="/sandbox/travel-map">Make your own map</a>.</p>
+  </div>
+  <!-- Outside the content column: the map spans the full page width. -->
+  <KimMap client:only="preact" data={data}>
+    <p slot="fallback" class="mx-auto max-w-screen-lg px-5 text-sm">Loading map…</p>
+  </KimMap>
+</PageLayout>

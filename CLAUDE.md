@@ -20,11 +20,11 @@ Path alias: `@*` maps to `./src/*` (e.g. `@components/...`, `@lib/...`, `@layout
 
 ## Content architecture
 
-Content lives in `src/content/` as three Astro content collections defined in [src/content/config.ts](src/content/config.ts): `blog`, `work`, `projects`. Schemas are Zod-validated — changing frontmatter shape requires editing the schema there. Entries with `draft: true` are filtered out of all listings.
+Content lives in `src/content/` as Astro content collections defined in [src/content/config.ts](src/content/config.ts): `blog`, `projects`, `sandbox`. Schemas are Zod-validated — changing frontmatter shape requires editing the schema there. Entries with `draft: true` are filtered out of all listings.
 
 ### The blog folder system (most important / non-obvious part)
 
-The blog supports arbitrary **nested folders**, unlike the flat `projects`/`work` collections. This is a custom extension on top of the template.
+The blog supports arbitrary **nested folders**, unlike the flat `projects`/`sandbox` collections. This is a custom extension on top of the template.
 
 - The `blog` collection schema is a **union** of two shapes (see `config.ts`): a normal post (`folder` absent or `false`) and a folder index (`folder: true`). A folder is just a markdown file (conventionally `index.md`) with `folder: true` plus `title`/`description` — it carries no body content, only metadata used to label/describe the folder in listings and breadcrumbs.
 - The on-disk directory structure under `src/content/blog/` *is* the folder hierarchy. An entry's `slug` (e.g. `usp/MAC0470/Tutorials/tutorial_1`) encodes its path. Folder index files have slugs ending in `/index`, normalized by stripping `/index`.
@@ -39,6 +39,7 @@ When adding nested blog content, place markdown under the appropriate directory 
 Self-contained projects that live inside the site each get a folder under `src/apps/<name>/` holding their components, logic, data, styles, scripts and tests. Current apps: `travel-map` (see its [README](src/apps/travel-map/README.md)) and `typing-test` (the typing game on the homepage).
 
 - Only what Astro requires elsewhere stays outside: thin route files in `src/pages/` (title + one component) and static files in `public/<app>/`.
+- Apps visitors open on their own page are listed in the **sandbox** (`/sandbox`, in the header). Each one has an entry in `src/content/sandbox/<slug>/index.md` (frontmatter only: title, description, date, `preview`), its routes in `src/pages/sandbox/<slug>/`, and a `preview.astro` there: a bare page (`EmbedLayout`) that `SandboxCard` shows as a live, scaled-down iframe, CodePen-style. Keep previews non-interactive and light, they load on the listing page.
 - An app may import from the site (`@layouts`, `@lib/utils`, …). The site imports an app only from that app's route files or the page that embeds it. Apps never import from each other.
 - Import with the alias: `@apps/travel-map/lib/...`.
 - `src/components/` and `src/lib/` are for the site itself (header, cards, blog helpers), not app code.
@@ -47,7 +48,7 @@ Self-contained projects that live inside the site each get a folder under `src/a
 
 Shift+Esc (or the search icon in the header) opens a Spotlight-style palette on every page, showing the 3 best matches.
 
-- [src/pages/search.json.ts](src/pages/search.json.ts) builds the index at build time: the sections, every blog folder, every post and project, plus a project's `demoURL` when it points at this site. A new top-level page has to be added there by hand.
+- [src/pages/search.json.ts](src/pages/search.json.ts) builds the index at build time: the sections, every blog folder, every post, project and sandbox app. A new top-level page has to be added there by hand.
 - [src/lib/search.ts](src/lib/search.ts) holds the `SearchItem` type and the pure matching/ranking (`searchItems`), tested in `search.test.ts`.
 - [src/components/SearchPalette.astro](src/components/SearchPalette.astro) (rendered by `PageLayout`) is the `<dialog>` and its script; it fetches `/search.json` the first time it opens.
 - The shortcut must never be a key that types a character: the homepage typing test (and any text field) has to receive every letter.

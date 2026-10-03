@@ -1,0 +1,10 @@
+---
+import EmbedLayout from "@layouts/EmbedLayout.astro";
+import MapPreview from "@apps/travel-map/components/Preview";
+import { loadKimData } from "@apps/travel-map/data/kim";
+---
+
+<!-- Shown inside the travel map's card on /sandbox -->
+<EmbedLayout title="Travel map preview" description="A thumbnail of the travel map.">
+  <MapPreview client:only="preact" data={loadKimData()} />
+</EmbedLayout>

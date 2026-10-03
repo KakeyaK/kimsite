@@ -58,4 +58,4 @@ export function parseHash(hash: string): string | null {
 }
 
 export const inviteUrl = (origin: string, i: Invite): string =>
-  `${origin}/projects/map/invite#i=${encodeInvite(i)}`;
+  `${origin}/sandbox/travel-map/invite#i=${encodeInvite(i)}`;

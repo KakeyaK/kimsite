@@ -1,0 +1,97 @@
+---
+import type { CollectionEntry } from "astro:content";
+
+type Props = {
+  entry: CollectionEntry<"sandbox">;
+};
+
+const { entry } = Astro.props;
+const { title, description, preview } = entry.data;
+---
+
+<!--
+  CodePen-style card: a live, scaled-down copy of the app above its name.
+  The title link is stretched over the whole card (after:inset-0), so the
+  iframe never takes clicks or focus.
+-->
+<div
+  data-sandbox-card
+  class="group relative overflow-hidden rounded-lg border border-black/15 transition-colors duration-300 ease-in-out hover:bg-black/5 has-[:focus-visible]:ring-2 has-[:focus-visible]:ring-black/30 dark:border-white/20 dark:hover:bg-white/5 dark:has-[:focus-visible]:ring-white/40"
+>
+  <div
+    class="relative aspect-video overflow-hidden border-b border-black/15 bg-stone-200 dark:border-white/20 dark:bg-stone-800"
+  >
+    <!-- Rendered at twice the size and scaled down, so the app looks like a thumbnail -->
+    <iframe
+      src={preview}
+      title={`Preview of ${title}`}
+      loading="lazy"
+      tabindex="-1"
+      aria-hidden="true"
+      class="pointer-events-none absolute left-0 top-0 h-[200%] w-[200%] origin-top-left scale-50 border-0"
+    ></iframe>
+  </div>
+  <div class="px-4 py-3">
+    <a
+      href={`/sandbox/${entry.slug}`}
+      class="block truncate font-semibold after:absolute after:inset-0 focus:outline-none group-hover:text-black dark:group-hover:text-white"
+    >
+      {title}
+    </a>
+    <!-- One line, unfolding to the full text while the card is hovered or focused -->
+    <div class="unfold text-sm">
+      <div class="unfold-text">{description}</div>
+    </div>
+  </div>
+</div>
+
+<style>
+  .unfold {
+    max-height: 1.25rem;
+    overflow: hidden;
+    transition: max-height 300ms ease-in-out;
+  }
+
+  .unfold-text {
+    display: -webkit-box;
+    -webkit-box-orient: vertical;
+    -webkit-line-clamp: 1;
+    overflow: hidden;
+    /* Clamp back to one line only once the box has finished closing */
+    transition: -webkit-line-clamp 0s 300ms allow-discrete;
+  }
+
+  .group:is(:hover, :focus-within) .unfold {
+    /* Set by the script below to the text's full height */
+    max-height: var(--unfold-height, 6rem);
+  }
+
+  .group:is(:hover, :focus-within) .unfold-text {
+    -webkit-line-clamp: unset;
+    transition-delay: 0s;
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .unfold,
+    .unfold-text {
+      transition: none;
+    }
+  }
+</style>
+
+<script>
+  // Measure the full description just before it unfolds, so the animation
+  // ends exactly at the text's height (it changes with the card's width)
+  const measure = (e: Event) => {
+    const card = (e.target as Element).closest?.("[data-sandbox-card]");
+    const unfold = card?.querySelector<HTMLElement>(".unfold");
+    const text = unfold?.firstElementChild;
+    if (!unfold || !(text instanceof HTMLElement)) return;
+    // Unclamped for the measurement only; nothing is painted in between
+    text.style.webkitLineClamp = "unset";
+    unfold.style.setProperty("--unfold-height", `${text.scrollHeight}px`);
+    text.style.webkitLineClamp = "";
+  };
+  document.addEventListener("pointerover", measure);
+  document.addEventListener("focusin", measure);
+</script>

@@ -32,4 +32,16 @@ const projects = defineCollection({
   }),
 });
 
-export const collections = { blog, projects };
+const sandbox = defineCollection({
+  type: "content",
+  schema: z.object({
+    title: z.string(),
+    description: z.string(),
+    date: z.coerce.date(),
+    draft: z.boolean().optional(),
+    // Page shown, scaled down, in the app's card on /sandbox
+    preview: z.string(),
+  }),
+});
+
+export const collections = { blog, projects, sandbox };
