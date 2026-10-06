@@ -1,0 +1,18 @@
+---
+import PageLayout from "@layouts/PageLayout.astro";
+import OptimizationLab from "@apps/optimization/components/OptimizationLab";
+---
+
+<PageLayout title="Optimization lab" description="Step through Gaussian elimination and the simplex method, one row operation or pivot at a time." class="pt-20 pb-10">
+  <div class="mx-auto max-w-screen-lg space-y-6 px-5">
+    <div class="animate space-y-1">
+      <h1 class="text-2xl font-semibold text-black dark:text-white">Optimization lab</h1>
+      <p class="text-sm">
+        Gaussian elimination and the simplex method, one step at a time. Edit the numbers, then play or scrub through the run.
+      </p>
+    </div>
+    <OptimizationLab client:only="preact">
+      <p slot="fallback" class="text-sm">Loading…</p>
+    </OptimizationLab>
+  </div>
+</PageLayout>

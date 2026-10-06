@@ -1,0 +1,9 @@
+---
+import EmbedLayout from "@layouts/EmbedLayout.astro";
+import LabPreview from "@apps/optimization/components/Preview";
+---
+
+<!-- Shown inside the optimization lab's card on /sandbox -->
+<EmbedLayout title="Optimization lab preview" description="A thumbnail of the optimization lab.">
+  <LabPreview client:only="preact" />
+</EmbedLayout>

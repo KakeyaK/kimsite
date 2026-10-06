@@ -1,0 +1,49 @@
+/* Step animations. Durations fit inside one step at the fastest speed (see STEP_MS in Player.tsx). */
+
+/* A value that just changed */
+.opt-flash {
+  animation: opt-flash 700ms ease-out;
+  border-radius: 0.25rem;
+}
+
+@keyframes opt-flash {
+  from {
+    background-color: rgb(245 158 11 / 0.6);
+  }
+  to {
+    background-color: transparent;
+  }
+}
+
+/* Rows trading places, and the vertex travelling along an edge */
+.opt-move {
+  transition:
+    transform 500ms ease-in-out,
+    background-color 300ms ease-in-out;
+}
+
+/* The newest piece of the path, drawn from its start. Needs pathLength="1" on the element. */
+.opt-draw {
+  stroke-dasharray: 1;
+  animation: opt-draw 500ms ease-in-out;
+}
+
+@keyframes opt-draw {
+  from {
+    stroke-dashoffset: 1;
+  }
+  to {
+    stroke-dashoffset: 0;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .opt-flash,
+  .opt-draw {
+    animation: none;
+  }
+
+  .opt-move {
+    transition: none;
+  }
+}
