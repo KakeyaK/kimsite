@@ -7,7 +7,7 @@ import { addStops, isCityStop, isRegionStop, outlinedCountries, stopList, stopNa
 import { cn } from "@lib/utils";
 import { useMapView } from "./useMapView";
 import { Postcard } from "./Postcard";
-import { btn, container, mapBox, overlay } from "./ui";
+import { btn, MY_MAP_URL, container, mapBox, overlay } from "./ui";
 
 type Added = { added: string[]; saved: boolean };
 
@@ -106,7 +106,7 @@ export function InviteView({ invite, unknown }: { invite: Invite; unknown: strin
                   📌 Add to my map as "Want to go"
                 </button>
               )}
-              <a class={btn} href="/sandbox/travel-map">Open my map</a>
+              <a class={btn} href={MY_MAP_URL}>Open my map</a>
             </div>
             {calendarUrl && invite.email && (
               <p class="text-xs">Saving the event in Google Calendar will offer to send {invite.from ?? "the inviter"} an invitation.</p>

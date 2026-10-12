@@ -1,5 +1,8 @@
 import type { Status } from "@apps/travel-map/lib/data";
 
+/** The visitor's own, editable map. */
+export const MY_MAP_URL = "/sandbox/travel-map/mine";
+
 export const btn =
   "rounded border border-black/15 dark:border-white/20 px-2.5 py-1 text-sm text-black/75 dark:text-white/75 " +
   "hover:bg-black/5 dark:hover:bg-white/10 transition-colors disabled:opacity-40 disabled:pointer-events-none";

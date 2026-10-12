@@ -27,11 +27,9 @@ export default defineConfig({
   site: "https://www.kakeya.kim/",
   integrations: [
     mdx(),
-    // Leave out app previews (only shown inside iframes) and the old
-    // /projects/map addresses (redirects to /sandbox/travel-map)
+    // Leave out app previews (only shown inside iframes)
     sitemap({
-      filter: (page) =>
-        !page.endsWith("/preview/") && !page.includes("/projects/map"),
+      filter: (page) => !page.endsWith("/preview/"),
     }),
     tailwind(),
     preact(),

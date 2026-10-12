@@ -3,11 +3,11 @@ import type { TravelData } from "@apps/travel-map/lib/data";
 import { atYear, regionColors, statusColors, yearRange } from "@apps/travel-map/lib/stats";
 import { countryName, regionByCode } from "@apps/travel-map/lib/meta";
 import type { PlaceRef } from "@apps/travel-map/lib/mapView";
-import { createStore } from "@apps/travel-map/lib/storage";
 import { cn } from "@lib/utils";
 import { useMapView } from "./useMapView";
 import { StatsStrip } from "./StatsStrip";
 import { MapNotes } from "./MapNotes";
+import { MyMapLink } from "./MyMapLink";
 import { TimelineSlider } from "./TimelineSlider";
 import { btn, container, mapBox, overlay, STATUS_LABEL } from "./ui";
 
@@ -29,20 +29,14 @@ export default function KimMap({ data }: { data: TravelData }) {
 
   useEffect(() => (view ? view.onPlaceClick(setSelected) : undefined), [view]);
 
-  function startOwn() {
-    const store = createStore();
-    const mine = store.load();
-    const hasMine = Object.keys(mine.countries).length > 0;
-    if (hasMine && !confirm("Replace your own map with a copy of mine?")) return;
-    store.save(structuredClone(data));
-    window.location.href = "/sandbox/travel-map";
-  }
-
   const entry = selected && (selected.kind === "region" ? data.regions : data.countries)[selected.code];
   const name = selected && (selected.kind === "region" ? (regionByCode(selected.code)?.name ?? selected.code) : countryName(selected.code));
 
   return (
     <div class="space-y-6">
+      <div class={container}>
+        <MyMapLink />
+      </div>
       <div class="relative">
         {error ? <p class={cn(container, "py-8")}>{error}</p> : <div ref={ref} class={mapBox} />}
         {selected && (
@@ -66,10 +60,6 @@ export default function KimMap({ data }: { data: TravelData }) {
       <div class={cn(container, "space-y-6")}>
         {range && <TimelineSlider min={range[0]} max={range[1]} value={year} onChange={setYear} />}
         <StatsStrip data={shown} />
-        <div class="flex flex-wrap gap-2">
-          <button type="button" class={btn} onClick={startOwn}>Start my own map from this</button>
-          <a class={btn} href="/sandbox/travel-map">Make my own map</a>
-        </div>
         <MapNotes />
       </div>
     </div>
