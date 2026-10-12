@@ -27,9 +27,10 @@ export default defineConfig({
   site: "https://www.kakeya.kim/",
   integrations: [
     mdx(),
-    // Leave out app previews (only shown inside iframes)
+    // Leave out app previews (only shown inside iframes) and unlisted pages
     sitemap({
-      filter: (page) => !page.endsWith("/preview/"),
+      filter: (page) =>
+        !page.endsWith("/preview/") && !page.endsWith("/invite-guide/"),
     }),
     tailwind(),
     preact(),

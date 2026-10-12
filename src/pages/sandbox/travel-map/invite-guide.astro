@@ -1,0 +1,58 @@
+---
+// Unlisted: nothing links here, and it's kept out of the sitemap (astro.config.mjs), search.json and search engines.
+import { marked } from "marked";
+import PageLayout from "@layouts/PageLayout.astro";
+import { invitePrompt, inviteReference } from "@apps/travel-map/lib/inviteGuide";
+
+const origin = Astro.site!.origin;
+const reference = await marked.parse(inviteReference(origin));
+const prompt = invitePrompt(origin);
+---
+
+<PageLayout title="Writing trip invites" description="The travel map's invite link format, and a prompt that has an AI write one." class="pt-20 pb-10" noindex>
+  <article class="mx-auto max-w-screen-md space-y-10 px-5">
+    <div class="space-y-2">
+      <h1 class="text-2xl font-semibold text-black dark:text-white">Writing trip invites</h1>
+      <p>
+        A trip invite is a link: the places, the dates and the message are all in it. Write one by hand with the reference
+        below, or copy the prompt into an AI chat and let it ask you about the trip.
+      </p>
+    </div>
+
+    <section aria-labelledby="prompt-title" class="space-y-3">
+      <div class="flex items-center justify-between gap-3">
+        <h2 id="prompt-title" class="text-xl font-semibold text-black dark:text-white">The prompt</h2>
+        <button
+          type="button"
+          id="copy-prompt"
+          class="rounded border border-black/15 px-2.5 py-1 text-sm text-black/75 transition-colors hover:bg-black/5 dark:border-white/20 dark:text-white/75 dark:hover:bg-white/10"
+        >
+          Copy prompt
+        </button>
+      </div>
+      <p class="text-sm">It holds the whole reference, so it also works in a model that can't browse the web.</p>
+      <textarea id="prompt" readonly rows="14" aria-labelledby="prompt-title" class="w-full rounded border border-black/15 bg-transparent p-3 font-mono text-xs text-black dark:border-white/20 dark:text-white">{prompt}</textarea>
+      <p id="copy-status" role="status" class="text-sm"></p>
+    </section>
+
+    <section aria-label="Format reference" class="prose dark:prose-invert max-w-none break-words [&_code]:break-all" set:html={reference} />
+  </article>
+</PageLayout>
+
+<script>
+  document.addEventListener("astro:page-load", () => {
+    const button = document.getElementById("copy-prompt");
+    const prompt = document.getElementById("prompt") as HTMLTextAreaElement | null;
+    const status = document.getElementById("copy-status");
+    if (!button || !prompt || !status) return;
+    button.onclick = async () => {
+      try {
+        await navigator.clipboard.writeText(prompt.value);
+        status.textContent = "Prompt copied!";
+      } catch {
+        prompt.select();
+        status.textContent = "Couldn't copy: the prompt is selected, press Ctrl+C (⌘C).";
+      }
+    };
+  });
+</script>

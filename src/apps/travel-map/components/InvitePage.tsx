@@ -1,12 +1,15 @@
 import { useEffect, useState } from "preact/hooks";
-import { decodeInvite, parseHash } from "@apps/travel-map/lib/invite";
+import { loadCities } from "@apps/travel-map/lib/cities";
+import { decodeInvite, type DecodeResult } from "@apps/travel-map/lib/invite";
 import { KNOWN_CODES } from "@apps/travel-map/lib/meta";
 import { cn } from "@lib/utils";
 import { InviteView } from "./InviteView";
-import { btn, MY_MAP_URL, container } from "./ui";
+import { btn, container, MY_MAP_URL } from "./ui";
 
 export default function InvitePage() {
   const [hash, setHash] = useState(() => window.location.hash);
+  /** null while decoding: a city stop needs the city list, which is fetched. */
+  const [result, setResult] = useState<DecodeResult | null>(null);
 
   useEffect(() => {
     // Opening a second invite link in the same tab only changes the hash; re-render for it.
@@ -15,14 +18,23 @@ export default function InvitePage() {
     return () => window.removeEventListener("hashchange", onHash);
   }, []);
 
-  const payload = parseHash(hash);
-  const decoded = payload ? decodeInvite(payload, KNOWN_CODES) : null;
-  if (payload && decoded) return <InviteView key={payload} invite={decoded.value} unknown={decoded.unknown} />;
+  useEffect(() => {
+    let cancelled = false;
+    setResult(null);
+    void decodeInvite(hash, KNOWN_CODES, loadCities).then((r) => !cancelled && setResult(r));
+    return () => { cancelled = true; };
+  }, [hash]);
+
+  if (!result) return <p class={cn(container, "text-sm")}>Unfolding your invite…</p>;
+  if (result.ok) return <InviteView key={hash} invite={result.value} unknown={result.unknown} />;
 
   return (
     <div class={cn(container, "space-y-4")}>
       <h1 class="text-2xl font-semibold text-black dark:text-white">This invite looks broken 🧭</h1>
       <p>The link may have been cut off when it was pasted. Ask your friend to send it again.</p>
+      <p class="text-sm">
+        What's wrong: <code>{result.error.field}</code> {result.error.message}
+      </p>
       <a class={btn} href={MY_MAP_URL}>Open my map</a>
     </div>
   );

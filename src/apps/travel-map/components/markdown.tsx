@@ -2,8 +2,9 @@ import { Lexer, type Token, type Tokens } from "marked";
 import type { ComponentChildren, VNode } from "preact";
 import { useState } from "preact/hooks";
 import { isHttpsUrl } from "@apps/travel-map/lib/data";
+import { MAX_MD_IMAGES } from "@apps/travel-map/lib/invite";
 
-export const MAX_MD_IMAGES = 6;
+export { MAX_MD_IMAGES };
 
 /**
  * Markdown → Preact elements. marked only tokenizes; every element is built here from an

@@ -30,7 +30,7 @@ export function InviteBuilder({ stops, onStopsChange, onClose }: Props) {
 
   const invite = useMemo<Invite | null>(() => {
     if (stops.length === 0) return null;
-    const inv: Invite = { v: 1, stops };
+    const inv: Invite = { stops };
     if (from.trim()) inv.from = from.trim().slice(0, 80);
     if (message.trim()) inv.message = message.trim();
     if (date) inv.date = date;
