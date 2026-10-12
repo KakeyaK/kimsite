@@ -22,3 +22,14 @@ html.dark {
   --map-label: #d6d3d1;
   --map-selected: #fafaf9;
 }
+
+/* The invite's postcard: pops up over the map after the tour, then slides down below it. */
+@keyframes postcard-fade {
+  from { opacity: 0; }
+}
+@keyframes postcard-in {
+  from { opacity: 0; transform: translateY(1.5rem) scale(0.96); }
+}
+@keyframes postcard-dock {
+  from { opacity: 0; transform: translateY(-12rem); }
+}

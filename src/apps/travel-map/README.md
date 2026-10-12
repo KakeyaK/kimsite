@@ -6,7 +6,7 @@ friends on a trip (to a country, a state or a city). `/sandbox/travel-map` shows
 
 ## Layout
 
-- `components/` — Preact UI. Entry points: `TravelMap` (your map, with the `Onboarding` card), `KimMap` (Kim's read-only map), `InvitePage` (a trip invite), `Preview` (the sandbox thumbnail).
+- `components/` — Preact UI. Entry points: `TravelMap` (your map, with the `Onboarding` card), `KimMap` (Kim's read-only map), `InvitePage` (a trip invite: a globe tour, then the postcard over the map, which "Explore the map" sends below it), `Preview` (the sandbox thumbnail).
 - `lib/` — everything without UI: data schema, storage, stats, search, trip invites, and `mapView.ts` (the MapLibre wrapper). Tests sit next to the code.
 - `data/travel.json` — Kim's own map, shown at `/sandbox/travel-map`; `data/kim.ts` loads and validates it.
 - `styles.css` — the map's colors (`--map-*`), light and dark.
