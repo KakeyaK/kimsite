@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { createStore, exportJson, importJson, STORAGE_KEY, type StorageLike } from "./storage";
+import { createFlag, createStore, exportJson, importJson, STORAGE_KEY, type StorageLike } from "./storage";
 import { emptyData, type TravelData } from "./data";
 
 function memoryStorage(): StorageLike & { map: Map<string, string> } {
@@ -97,5 +97,21 @@ describe("importJson", () => {
       expect(Object.keys(r.data.regions)).toEqual(["BR-SP"]);
       expect(r.warnings[0]).toMatch(/BR-XX/);
     }
+  });
+});
+
+describe("createFlag", () => {
+  it("is false until set, and remembers it", () => {
+    const s = memoryStorage();
+    expect(createFlag("k", s).get()).toBe(false);
+    createFlag("k", s).set();
+    expect(createFlag("k", s).get()).toBe(true);
+  });
+
+  it("reads false and doesn't throw when storage is blocked", () => {
+    const flag = createFlag("k", throwing);
+    expect(() => flag.set()).not.toThrow();
+    expect(flag.get()).toBe(false);
+    expect(createFlag("k", null).get()).toBe(false);
   });
 });

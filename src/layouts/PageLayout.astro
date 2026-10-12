@@ -9,15 +9,18 @@ type Props = {
   title: string;
   description: string;
   class?: string;
+  /** Keep the page out of search engines (unlisted pages). */
+  noindex?: boolean;
 };
 
-const { title, description, class: className } = Astro.props;
+const { title, description, class: className, noindex = false } = Astro.props;
 ---
 
 <!doctype html>
 <html lang="en">
   <head>
     <Head title={`${title} | ${SITE.NAME}`} description={description} />
+    {noindex && <meta name="robots" content="noindex" />}
   </head>
   <body>
     <Header />

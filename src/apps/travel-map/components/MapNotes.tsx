@@ -1,5 +1,4 @@
 import { REGIONS, countryName, regionsOf } from "@apps/travel-map/lib/meta";
-import { TOTAL_COUNTRIES } from "@apps/travel-map/lib/stats";
 
 const link = "underline underline-offset-2";
 const byName = (a: string, b: string) => a.localeCompare(b);
@@ -16,8 +15,8 @@ export function MapNotes() {
         can add to a trip (those with more than 100,000 people) from <a class={link} href="https://www.geonames.org/">GeoNames</a>.
       </p>
       <p>
-        Borders, names and the count of {TOTAL_COUNTRIES} countries follow the United Nations: its 193 members plus its 2 observer
-        states (the Holy See and Palestine). Other places, such as Kosovo, Taiwan or Hong Kong, can be marked but aren't counted.
+        Borders and names follow the United Nations. Places it doesn't list as states, such as Kosovo, Taiwan or Hong Kong,
+        can be marked too.
       </p>
       <p>
         To keep the map quick to load, only some countries are split into states or provinces: {WITH_STATES.join(", ")}. The

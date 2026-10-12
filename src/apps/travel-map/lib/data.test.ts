@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { travelDataSchema, emptyData, dropUnknown, isHttpsUrl, setRegion, type TravelData } from "./data";
+import { travelDataSchema, emptyData, dropUnknown, isHttpsUrl, isEmptyData, setRegion, type TravelData } from "./data";
 
 const sample: TravelData = {
   version: 1, regions: {},
@@ -112,5 +112,13 @@ describe("setRegion", () => {
     const out = setRegion(start, "BR-SP", null);
     expect(out.regions).toEqual({});
     expect(out.countries.BRA).toEqual({ status: "visited" });
+  });
+});
+
+describe("isEmptyData", () => {
+  it("is true only when no country or state is marked", () => {
+    expect(isEmptyData(emptyData())).toBe(true);
+    expect(isEmptyData({ ...emptyData(), countries: { JPN: { status: "want" } } })).toBe(false);
+    expect(isEmptyData({ ...emptyData(), regions: { "BR-BA": { status: "visited" } } })).toBe(false);
   });
 });

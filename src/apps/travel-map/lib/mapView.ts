@@ -13,8 +13,9 @@ import type { ColorKey } from "./stats";
 import { alongLine, greatCircle, type LonLat } from "./geo";
 import { isCityStop, isRegionStop, stopCenter, type CityStop, type Stop } from "./stops";
 import { COUNTRIES, REGIONS, countryByIso, regionByCode, regionsOf } from "./meta";
+import { OVERLAP_KEYS } from "./overlap";
 
-const COLOR_KEYS: ColorKey[] = ["visited", "lived", "want", "stop"];
+const COLOR_KEYS: ColorKey[] = ["visited", "lived", "want", "stop", ...OVERLAP_KEYS];
 const EMPTY: FeatureCollection = { type: "FeatureCollection", features: [] };
 
 function token(name: string): string {
@@ -111,6 +112,7 @@ export class MapView {
   private themeObserver: MutationObserver;
   private cancelSpin: (() => void) | null = null;
   private destroyed = false;
+  private introSkipped = false;
   private dark = document.documentElement.classList.contains("dark");
 
   constructor({ container, globe = false, interactive = true }: { container: HTMLElement; globe?: boolean; interactive?: boolean }) {
@@ -344,16 +346,25 @@ export class MapView {
     { spinMs = 1800, pauseMs = 800, onStop }: { spinMs?: number; pauseMs?: number; onStop?: (i: number) => void } = {},
   ): Promise<void> {
     await this.ready;
-    if (!reducedMotion()) await this.spin(spinMs);
-    for (let i = 0; i < stops.length && !this.destroyed; i++) {
+    if (!reducedMotion() && !this.introSkipped) await this.spin(spinMs);
+    for (let i = 0; i < stops.length && !this.destroyed && !this.introSkipped; i++) {
       onStop?.(i);
       const duration = i === 0 ? 2500 : 2000;
       // From the second stop on, a plane flies the leg while the camera follows.
       const leg = i > 0 && !reducedMotion() ? this.flyPlane(greatCircle(stopCenter(stops[i - 1]), stopCenter(stops[i])), duration) : null;
       await Promise.all([this.flyAndSettle(stops[i], duration), leg]);
-      if (i < stops.length - 1 && !reducedMotion()) await sleep(pauseMs);
+      if (i < stops.length - 1 && !reducedMotion() && !this.introSkipped) await sleep(pauseMs);
     }
-    this.setPlane(null);
+    if (!this.destroyed) this.setPlane(null);
+  }
+
+  /** Cut the intro short: `globeIntro` resolves at once, with the camera on the last stop, where the tour ends. */
+  skipIntro(stops: Stop[]): void {
+    this.introSkipped = true;
+    this.cancelSpin?.();
+    this.map.stop();
+    if (this.map.getSource("plane")) this.setPlane(null);
+    if (stops.length) this.flyToStop(stops[stops.length - 1], { duration: 0 });
   }
 
   /** Move the plane along `line` over `ms`, eased like the camera. It stays at the end until the next leg. */
@@ -362,7 +373,7 @@ export class MapView {
       const start = performance.now();
       const ease = (t: number) => (t < 0.5 ? 2 * t * t : 1 - (-2 * t + 2) ** 2 / 2);
       const step = (now: number) => {
-        if (this.destroyed) return resolve();
+        if (this.destroyed || this.introSkipped) return resolve();
         const f = Math.min(1, (now - start) / ms);
         this.setPlane(alongLine(line, ease(f)));
         if (f < 1) requestAnimationFrame(step);

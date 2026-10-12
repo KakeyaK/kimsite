@@ -1,17 +1,18 @@
 ---
 import PageLayout from "@layouts/PageLayout.astro";
-import TravelMap from "@apps/travel-map/components/TravelMap";
+import MapViewer from "@apps/travel-map/components/MapViewer";
+import { loadKimData } from "@apps/travel-map/data/kim";
+
+const data = loadKimData();
 ---
 
-<PageLayout title="Travel map" description="Mark the countries you've visited, lived in, and want to see, then invite friends on a trip." class="pt-20 pb-10">
+<PageLayout title="Travel map" description="Where I've been, lived, and want to go. Make your own map and invite friends on a trip." class="pt-20 pb-10">
   <div class="animate mx-auto mb-6 max-w-screen-lg space-y-1 px-5">
-    <h1 class="text-2xl font-semibold text-black dark:text-white">Travel map</h1>
-    <p class="text-sm">
-      Your map is saved in this browser only. Curious where I've been? <a class="underline underline-offset-2" href="/sandbox/travel-map/kim">See my map</a>.
-    </p>
+    <h1 class="text-2xl font-semibold text-black dark:text-white">Where I've been</h1>
+    <p class="text-sm">Drag the timeline to watch the map fill in, or click a country to read about it.</p>
   </div>
   <!-- Outside the content column: the map spans the full page width. -->
-  <TravelMap client:only="preact">
+  <MapViewer client:only="preact" data={data} owner="Kim">
     <p slot="fallback" class="mx-auto max-w-screen-lg px-5 text-sm">Loading map…</p>
-  </TravelMap>
+  </MapViewer>
 </PageLayout>

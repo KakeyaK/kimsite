@@ -1,0 +1,48 @@
+---
+// Unlisted: nothing links here, and it's kept out of the sitemap (astro.config.mjs), search.json and search engines.
+import PageLayout from "@layouts/PageLayout.astro";
+import { invitePrompt } from "@apps/travel-map/lib/inviteGuide";
+import { MY_MAP_URL } from "@apps/travel-map/components/ui";
+
+const prompt = invitePrompt();
+---
+
+<PageLayout title="Writing trip invites" description="A prompt that has an AI write a trip invite for the travel map." class="pt-20 pb-10" noindex>
+  <article class="mx-auto max-w-screen-md space-y-4 px-5">
+    <div class="flex items-center justify-between gap-3">
+      <h1 id="prompt-title" class="text-2xl font-semibold text-black dark:text-white">Writing trip invites</h1>
+      <button
+        type="button"
+        id="copy-prompt"
+        class="shrink-0 rounded border border-black/15 px-2.5 py-1 text-sm text-black/75 transition-colors hover:bg-black/5 dark:border-white/20 dark:text-white/75 dark:hover:bg-white/10"
+      >
+        Copy prompt
+      </button>
+    </div>
+    <p>
+      Copy this prompt into an AI chat. It asks about the trip and replies with the invite as text. Paste that into
+      the trip planner on <a class="underline underline-offset-2" href={MY_MAP_URL}>your map</a> (Plan a trip, then the code button), and go
+      back to the form to check it, change it and share the link.
+    </p>
+    <textarea id="prompt" readonly rows="24" aria-labelledby="prompt-title" class="w-full rounded border border-black/15 bg-transparent p-3 font-mono text-xs text-black dark:border-white/20 dark:text-white">{prompt}</textarea>
+    <p id="copy-status" role="status" class="text-sm"></p>
+  </article>
+</PageLayout>
+
+<script>
+  document.addEventListener("astro:page-load", () => {
+    const button = document.getElementById("copy-prompt");
+    const prompt = document.getElementById("prompt") as HTMLTextAreaElement | null;
+    const status = document.getElementById("copy-status");
+    if (!button || !prompt || !status) return;
+    button.onclick = async () => {
+      try {
+        await navigator.clipboard.writeText(prompt.value);
+        status.textContent = "Prompt copied!";
+      } catch {
+        prompt.select();
+        status.textContent = "Couldn't copy: the prompt is selected, press Ctrl+C (⌘C).";
+      }
+    };
+  });
+</script>

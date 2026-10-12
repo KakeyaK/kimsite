@@ -73,6 +73,29 @@ export function createStore(storage: StorageLike | null = browserStorage()): Sto
   };
 }
 
+/** Set once the visitor closes the welcome card on their map. */
+export const ONBOARDING_KEY = "travel-map:onboarding-dismissed";
+
+/** A yes/no remembered in storage. Reads false, and writes nothing, when storage is blocked. */
+export function createFlag(key: string, storage: StorageLike | null = browserStorage()) {
+  return {
+    get(): boolean {
+      try {
+        return storage?.getItem(key) === "1";
+      } catch {
+        return false;
+      }
+    },
+    set(): void {
+      try {
+        storage?.setItem(key, "1");
+      } catch {
+        // blocked storage: the flag lasts until the page closes
+      }
+    },
+  };
+}
+
 export function exportJson(data: TravelData): string {
   return JSON.stringify(data, null, 2);
 }

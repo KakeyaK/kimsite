@@ -38,6 +38,11 @@ export function emptyData(): TravelData {
   return { version: 1, countries: {}, regions: {} };
 }
 
+/** True when nothing is marked on the map. */
+export function isEmptyData(d: TravelData): boolean {
+  return Object.keys(d.countries).length === 0 && Object.keys(d.regions).length === 0;
+}
+
 /** The codes the app has shapes for; anything else in imported data is dropped. */
 export interface KnownCodes {
   countries: ReadonlySet<string>;

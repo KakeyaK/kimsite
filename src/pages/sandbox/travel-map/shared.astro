@@ -1,0 +1,11 @@
+---
+import PageLayout from "@layouts/PageLayout.astro";
+import SharedMapPage from "@apps/travel-map/components/SharedMapPage";
+---
+
+<PageLayout title="A shared travel map" description="A friend's travel map. Compare it with yours to find places to go together." class="pt-20 pb-10">
+  <!-- No content column: the map spans the full page width. -->
+  <SharedMapPage client:only="preact">
+    <p slot="fallback" class="mx-auto max-w-screen-lg px-5 text-sm">Loading map…</p>
+  </SharedMapPage>
+</PageLayout>

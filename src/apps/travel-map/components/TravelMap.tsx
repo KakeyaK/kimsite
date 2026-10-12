@@ -1,20 +1,22 @@
 import { useEffect, useMemo, useRef, useState } from "preact/hooks";
-import { emptyData, setRegion, type CountryEntry, type ISO3, type TravelData } from "@apps/travel-map/lib/data";
-import { createStore } from "@apps/travel-map/lib/storage";
+import { emptyData, isEmptyData, setRegion, type CountryEntry, type ISO3, type TravelData } from "@apps/travel-map/lib/data";
+import { createFlag, createStore, ONBOARDING_KEY } from "@apps/travel-map/lib/storage";
 import { regionColors, statusColors } from "@apps/travel-map/lib/stats";
-import { countryName, regionByCode } from "@apps/travel-map/lib/meta";
+import { countryName, KNOWN_CODES, regionByCode } from "@apps/travel-map/lib/meta";
 import type { PlaceRef } from "@apps/travel-map/lib/mapView";
 import { markPicked, type Place } from "@apps/travel-map/lib/places";
-import type { Stop } from "@apps/travel-map/lib/stops";
+import { planStopFromSearch, type Stop } from "@apps/travel-map/lib/stops";
 import { cn } from "@lib/utils";
 import { useMapView } from "./useMapView";
 import { PlacePanel } from "./PlacePanel";
 import { PlaceSearch } from "./PlaceSearch";
 import { RegionList } from "./RegionList";
-import { StatsStrip } from "./StatsStrip";
 import { ImportExport } from "./ImportExport";
+import { legendCorner, MapLegend, STATUS_LEGEND } from "./MapLegend";
 import { MapNotes } from "./MapNotes";
 import { InviteBuilder } from "./InviteBuilder";
+import { Onboarding } from "./Onboarding";
+import { ShareMap } from "./ShareMap";
 import { btn, container, mapBox, overlay } from "./ui";
 
 /** The country a selection belongs to (a state's country, or the country itself). */
@@ -25,10 +27,29 @@ export default function TravelMap() {
   const [data, setData] = useState<TravelData>(() => store.load());
   const [selected, setSelected] = useState<PlaceRef | null>(null);
   const { ref, view, error } = useMapView();
+  const onboarding = useMemo(() => createFlag(ONBOARDING_KEY), []);
+  /** The welcome card: on arrival with an empty map, until dismissed once; the "?" button brings it back. */
+  const [showHelp, setShowHelp] = useState(() => isEmptyData(data) && !onboarding.get());
+  const helpButtonRef = useRef<HTMLButtonElement>(null);
 
-  /** Trip stops while the planner is open; null when it's closed. */
-  const [planning, setPlanning] = useState<Stop[] | null>(null);
+  function closeHelp() {
+    setShowHelp(false);
+    onboarding.set();
+    helpButtonRef.current?.focus();
+  }
+
+  /** Trip stops while the planner is open; null when it's closed. "Plan a trip" on a compared map opens it with `?plan=`. */
+  const [planning, setPlanning] = useState<Stop[] | null>(() => {
+    const first = planStopFromSearch(window.location.search, KNOWN_CODES);
+    return first ? [first] : null;
+  });
   const plannerRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (!new URLSearchParams(window.location.search).has("plan")) return;
+    history.replaceState(history.state, "", window.location.pathname); // a reload shouldn't reopen it
+    if (planning) requestAnimationFrame(() => plannerRef.current?.scrollIntoView({ behavior: "smooth", block: "start" }));
+  }, []);
 
   function update(next: TravelData) {
     setData(next);
@@ -85,7 +106,7 @@ export default function TravelMap() {
       {!store.isPersistent() && (
         <p role="status" class={cn(container, "text-sm")}>
           <span class="block rounded border border-amber-500/40 bg-amber-500/10 p-3">
-            Your browser is blocking storage, so changes here won't be saved after you leave. Use Export to keep a copy.
+            Your browser is blocking storage, so changes here won't be saved after you leave. Use "Export map" to keep a copy.
           </span>
         </p>
       )}
@@ -98,9 +119,28 @@ export default function TravelMap() {
           <button type="button" class={cn(btn, overlay, "shrink-0 text-black dark:text-white")} onClick={planTrip}>
             ✈️ Plan a trip
           </button>
+          <button
+            ref={helpButtonRef}
+            type="button"
+            class={cn(btn, overlay, "shrink-0 text-black dark:text-white")}
+            onClick={() => setShowHelp(true)}
+            aria-label="How this map works"
+            aria-expanded={showHelp}
+          >
+            ?
+          </button>
         </div>
 
-        {selected && iso ? (
+        {showHelp && <Onboarding data={data} persistent={store.isPersistent()} onClose={closeHelp} />}
+
+        {!error && !selected && (
+          <p class={cn(overlay, "pointer-events-none absolute left-3 top-14 z-10 px-3 py-1.5 text-sm md:top-3")}>
+            Click a country, or search a place, to mark it.
+          </p>
+        )}
+        {!error && <MapLegend class={legendCorner} items={STATUS_LEGEND} />}
+
+        {selected && iso && (
           <div class="absolute inset-x-3 bottom-3 z-10 max-h-[55%] overflow-y-auto rounded-lg md:inset-x-auto md:bottom-auto md:left-3 md:top-3 md:max-h-[calc(100%-1.5rem)] md:w-80">
             {selected.kind === "region" ? (
               <PlacePanel
@@ -121,12 +161,6 @@ export default function TravelMap() {
               </PlacePanel>
             )}
           </div>
-        ) : (
-          !error && (
-            <p class={cn(overlay, "pointer-events-none absolute bottom-3 left-3 z-10 px-3 py-1.5 text-sm")}>
-              Click a country, or search a place, to mark it.
-            </p>
-          )
         )}
       </div>
 
@@ -136,7 +170,7 @@ export default function TravelMap() {
             <InviteBuilder stops={planning} onStopsChange={setPlanning} onClose={() => setPlanning(null)} />
           </div>
         )}
-        <StatsStrip data={data} />
+        <ShareMap data={data} />
         <ImportExport data={data} onImport={update} onClear={() => { store.clear(); setData(emptyData()); }} />
         <MapNotes />
       </div>

@@ -32,9 +32,9 @@ export function ImportExport({ data, onImport, onClear }: Props) {
   return (
     <section aria-label="Import and export" class="space-y-2 text-sm">
       <div class="flex flex-wrap gap-2">
-        <button type="button" class={btn} onClick={() => downloadJson(data)}>Export JSON</button>
+        <button type="button" class={btn} onClick={() => downloadJson(data)}>Export map</button>
         <label class={`${btn} cursor-pointer`}>
-          Import JSON
+          Import map
           <input
             type="file"
             accept="application/json,.json"
