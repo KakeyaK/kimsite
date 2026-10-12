@@ -1,6 +1,7 @@
 import { STATUSES, type CountryEntry, type ISO3, type Status, type TravelData } from "./data";
 import { regionsOf } from "./meta";
 import type { BBox } from "./geo";
+import type { OverlapKey } from "./overlap";
 
 /** The 193 UN members plus its two observer states (the Vatican and Palestine). */
 export const TOTAL_COUNTRIES = 195;
@@ -13,7 +14,8 @@ export const TOTAL_COUNTRIES = 195;
 export interface CountryMeta {
   iso: ISO3; name: string; continent: string; bbox: BBox; unState: boolean; label: [number, number]; labelRank: number;
 }
-export type ColorKey = Status | "stop";
+/** A colour on the map: a status, a trip stop, or an overlap category (see overlap.ts). Each is a `--map-*` variable. */
+export type ColorKey = Status | "stop" | OverlapKey;
 
 const IGNORED_CONTINENTS = new Set(["Antarctica", "Seven seas (open ocean)"]);
 

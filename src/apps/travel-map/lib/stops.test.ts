@@ -1,6 +1,6 @@
 import { describe, it, expect } from "vitest";
 import {
-  stopSchema, stopKey, stopName, stopList, stopCountry, stopCenter, stopBounds, isKnownStop, addStops, outlinedCountries, type Stop,
+  stopSchema, stopKey, stopName, stopList, stopCountry, stopCenter, stopBounds, isKnownStop, addStops, outlinedCountries, planStopFromSearch, planTripUrl, type Stop,
 } from "./stops";
 import { emptyData, type TravelData } from "./data";
 import { regionByCode } from "./meta";
@@ -102,5 +102,16 @@ describe("outlinedCountries", () => {
   it("skips countries that are stops themselves (they're filled) and repeats", () => {
     expect(outlinedCountries([kyoto, "JPN", { ...kyoto, n: "Osaka" }, "BR-BA", "BR-SP"])).toEqual(["BRA"]);
     expect(outlinedCountries(["KOR"])).toEqual([]);
+  });
+});
+
+describe("planning a trip from a link", () => {
+  const known = { countries: new Set(["JPN"]), regions: new Set(["BR-BA"]) };
+  it("reads the first stop back from the planner URL", () => {
+    expect(planStopFromSearch(new URL(planTripUrl("JPN"), "https://x").search, known)).toBe("JPN");
+    expect(planStopFromSearch(new URL(planTripUrl("BR-BA"), "https://x").search, known)).toBe("BR-BA");
+  });
+  it.each(["", "?plan=", "?plan=ZZZ", "?plan=jpn", "?plan=BR-XX", "?other=JPN"])("%j → null", (search) => {
+    expect(planStopFromSearch(search, known)).toBeNull();
   });
 });

@@ -107,3 +107,14 @@ export function addStops(data: TravelData, stops: Stop[], trip: Trip = {}): { da
   }
   return added.length ? { data: { ...data, countries, regions }, added } : { data, added };
 }
+
+/** `/mine?plan=JPN`: opens the trip planner with this country or state as the first stop. */
+export const planTripUrl = (code: string): string => `/sandbox/travel-map/mine?plan=${encodeURIComponent(code)}`;
+
+/** The first stop from a `?plan=` query, or null when there's none or it isn't a known country or state. */
+export function planStopFromSearch(search: string, known: KnownCodes): Stop | null {
+  const code = new URLSearchParams(search).get("plan");
+  if (!code) return null;
+  const parsed = z.union([iso3Schema, regionCodeSchema]).safeParse(code);
+  return parsed.success && isKnownStop(parsed.data, known) ? parsed.data : null;
+}

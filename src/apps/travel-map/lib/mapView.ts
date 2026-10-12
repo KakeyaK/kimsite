@@ -13,8 +13,9 @@ import type { ColorKey } from "./stats";
 import { alongLine, greatCircle, type LonLat } from "./geo";
 import { isCityStop, isRegionStop, stopCenter, type CityStop, type Stop } from "./stops";
 import { COUNTRIES, REGIONS, countryByIso, regionByCode, regionsOf } from "./meta";
+import { OVERLAP_KEYS } from "./overlap";
 
-const COLOR_KEYS: ColorKey[] = ["visited", "lived", "want", "stop"];
+const COLOR_KEYS: ColorKey[] = ["visited", "lived", "want", "stop", ...OVERLAP_KEYS];
 const EMPTY: FeatureCollection = { type: "FeatureCollection", features: [] };
 
 function token(name: string): string {

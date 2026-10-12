@@ -2,10 +2,10 @@ import { useEffect, useMemo, useRef, useState } from "preact/hooks";
 import { emptyData, isEmptyData, setRegion, type CountryEntry, type ISO3, type TravelData } from "@apps/travel-map/lib/data";
 import { createFlag, createStore, ONBOARDING_KEY } from "@apps/travel-map/lib/storage";
 import { regionColors, statusColors } from "@apps/travel-map/lib/stats";
-import { countryName, regionByCode } from "@apps/travel-map/lib/meta";
+import { countryName, KNOWN_CODES, regionByCode } from "@apps/travel-map/lib/meta";
 import type { PlaceRef } from "@apps/travel-map/lib/mapView";
 import { markPicked, type Place } from "@apps/travel-map/lib/places";
-import type { Stop } from "@apps/travel-map/lib/stops";
+import { planStopFromSearch, type Stop } from "@apps/travel-map/lib/stops";
 import { cn } from "@lib/utils";
 import { useMapView } from "./useMapView";
 import { PlacePanel } from "./PlacePanel";
@@ -16,6 +16,7 @@ import { ImportExport } from "./ImportExport";
 import { MapNotes } from "./MapNotes";
 import { InviteBuilder } from "./InviteBuilder";
 import { Onboarding } from "./Onboarding";
+import { ShareMap } from "./ShareMap";
 import { btn, container, mapBox, overlay } from "./ui";
 
 /** The country a selection belongs to (a state's country, or the country itself). */
@@ -37,9 +38,18 @@ export default function TravelMap() {
     helpButtonRef.current?.focus();
   }
 
-  /** Trip stops while the planner is open; null when it's closed. */
-  const [planning, setPlanning] = useState<Stop[] | null>(null);
+  /** Trip stops while the planner is open; null when it's closed. "Plan a trip" on a compared map opens it with `?plan=`. */
+  const [planning, setPlanning] = useState<Stop[] | null>(() => {
+    const first = planStopFromSearch(window.location.search, KNOWN_CODES);
+    return first ? [first] : null;
+  });
   const plannerRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (!new URLSearchParams(window.location.search).has("plan")) return;
+    history.replaceState(history.state, "", window.location.pathname); // a reload shouldn't reopen it
+    if (planning) requestAnimationFrame(() => plannerRef.current?.scrollIntoView({ behavior: "smooth", block: "start" }));
+  }, []);
 
   function update(next: TravelData) {
     setData(next);
@@ -160,6 +170,7 @@ export default function TravelMap() {
           </div>
         )}
         <StatsStrip data={data} />
+        <ShareMap data={data} />
         <ImportExport data={data} onImport={update} onClear={() => { store.clear(); setData(emptyData()); }} />
         <MapNotes />
       </div>

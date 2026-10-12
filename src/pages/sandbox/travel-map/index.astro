@@ -1,6 +1,6 @@
 ---
 import PageLayout from "@layouts/PageLayout.astro";
-import KimMap from "@apps/travel-map/components/KimMap";
+import MapViewer from "@apps/travel-map/components/MapViewer";
 import { loadKimData } from "@apps/travel-map/data/kim";
 
 const data = loadKimData();
@@ -12,7 +12,7 @@ const data = loadKimData();
     <p class="text-sm">Drag the timeline to watch the map fill in, or click a country to read about it.</p>
   </div>
   <!-- Outside the content column: the map spans the full page width. -->
-  <KimMap client:only="preact" data={data}>
+  <MapViewer client:only="preact" data={data} owner="Kim">
     <p slot="fallback" class="mx-auto max-w-screen-lg px-5 text-sm">Loading map…</p>
-  </KimMap>
+  </MapViewer>
 </PageLayout>

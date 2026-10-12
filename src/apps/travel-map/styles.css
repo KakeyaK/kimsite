@@ -9,6 +9,11 @@
   --map-stop: #e11d48;
   --map-label: #57534e;
   --map-selected: #1c1917;
+  /* Overlap mode: the owner's map compared with yours */
+  --map-both-been: #16a34a;
+  --map-both-want: #d97706;
+  --map-only-them: #db2777;
+  --map-only-you: #2563eb;
 }
 
 html.dark {
@@ -21,6 +26,10 @@ html.dark {
   --map-stop: #fb7185;
   --map-label: #d6d3d1;
   --map-selected: #fafaf9;
+  --map-both-been: #4ade80;
+  --map-both-want: #fbbf24;
+  --map-only-them: #f472b6;
+  --map-only-you: #60a5fa;
 }
 
 /* The invite's postcard: pops up over the map after the tour, then slides down below it. */
