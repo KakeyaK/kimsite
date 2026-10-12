@@ -1,3 +1,4 @@
+import LZString from "lz-string";
 import { z } from "astro/zod";
 import type { KnownCodes } from "./data";
 import type { CityRow } from "./cities";
@@ -6,7 +7,7 @@ import { isCityStop, isKnownStop, stopSchema, type Stop } from "./stops";
 
 export const MAX_STOPS = 10;
 /** The message is Markdown (it can hold image links), rendered safely by components/markdown.tsx. */
-export const MAX_MESSAGE = 2000;
+export const MAX_MESSAGE = 3000;
 export const MAX_FROM = 80;
 /** Images shown in a message; more are left out. */
 export const MAX_MD_IMAGES = 6;
@@ -30,13 +31,17 @@ export const inviteSchema = z
 export type Invite = z.infer<typeof inviteSchema>;
 
 /*
- * The link format, readable enough for a person or a language model to write by hand:
+ * The link: /sandbox/travel-map/invite#i=…, the fields below as JSON, compressed with lz-string (like a
+ * shared map's #m=…) so a long message still makes a link that chat apps don't cut. The trip planner writes
+ * it; what people (and language models) write by hand is the invite document, which has the same fields
+ * (lib/inviteDoc.ts).
+ *
+ * Links made before the compression spell the fields out, and still open:
  *
  *   /sandbox/travel-map/invite#to=Kyoto@JPN,BR-BA,KOR&from=Kim&date=2027-03-01&end=2027-03-15&msg=…
  *
- * Values are percent-encoded. A stop is a country code (JPN), a state code (BR-BA) or a city, Name@ISO3,
- * looked up by name in the city list. The invite-guide page (src/pages/sandbox/travel-map/invite-guide.astro)
- * documents it from lib/inviteGuide.ts.
+ * In both, a stop is a country code (JPN), a state code (BR-BA) or a city, Name@ISO3, looked up by name in
+ * the city list.
  */
 export const INVITE_FIELDS = ["to", "from", "email", "date", "end", "msg"] as const;
 export type InviteField = (typeof INVITE_FIELDS)[number];
@@ -45,7 +50,10 @@ export type InviteField = (typeof INVITE_FIELDS)[number];
 export type InviteError = { field: string; message: string };
 export type DecodeResult = { ok: true; value: Invite; unknown: string[] } | { ok: false; error: InviteError };
 
-/** A stop as written in the link, before cities are looked up. */
+/** An invite's fields as written (in a link or a document), decoded and trimmed, before anything is checked. */
+export type RawInvite = { to: string[] } & Partial<Record<Exclude<InviteField, "to">, string>>;
+
+/** A stop as written, before cities are looked up. */
 type StopSpec = { code: string } | { city: string; iso: string };
 
 const COUNTRY_RE = /^[A-Z]{3}$/;
@@ -98,15 +106,18 @@ export function findCity(rows: CityRow[], name: string, iso: string): CityRow | 
   return best;
 }
 
+const fail = (field: string, message: string): DecodeResult => ({ ok: false, error: { field, message } });
+const notAStop = (s: string) => `"${s}" isn't a stop. Write a country code (JPN), a state code (BR-BA) or a city as Name@ISO3 (Kyoto@JPN).`;
+
 /**
- * Read an invite from a link's hash (`#to=…&from=…`). Cities are looked up in `loadCities()`, which
+ * Read an invite from a link's hash (`#i=…`, or the older `#to=…&from=…`). Cities are looked up in `loadCities()`, which
  * is only called when the link has one. Places that can't be found are skipped and listed in `unknown`;
  * anything else wrong with the link is an error naming the field.
  */
 export async function decodeInvite(hash: string, known: KnownCodes, loadCities: () => Promise<CityRow[]>): Promise<DecodeResult> {
-  const fail = (field: string, message: string): DecodeResult => ({ ok: false, error: { field, message } });
   const body = hash.replace(/^#/, "");
-  if (!body) return fail("to", "the link has no invite in it: it should end in #to=… followed by the places");
+  if (!body) return fail("i", "is missing: the link has no invite in it");
+  if (body.startsWith("i=")) return decodePacked(body.slice(2), known, loadCities);
 
   const raw: Partial<Record<InviteField, string>> = {};
   for (const part of body.split("&")) {
@@ -121,7 +132,7 @@ export async function decodeInvite(hash: string, known: KnownCodes, loadCities: 
     raw[key as InviteField] = part.slice(eq + 1);
   }
 
-  const values: Partial<Record<InviteField, string>> = {};
+  const values: RawInvite = { to: [] };
   for (const field of INVITE_FIELDS) {
     if (field === "to" || raw[field] === undefined) continue;
     const v = decodeValue(raw[field]!);
@@ -131,19 +142,30 @@ export async function decodeInvite(hash: string, known: KnownCodes, loadCities: 
 
   // Stops: split on the commas first, so a comma inside a city name can be encoded as %2C.
   if (!raw.to) return fail("to", "is missing: list the places, e.g. to=Kyoto@JPN,BR-BA,KOR");
-  const specs: StopSpec[] = [];
   for (const piece of raw.to.split(",")) {
     const s = decodeValue(piece)?.trim();
     if (s === undefined) return fail("to", `"${piece}" isn't percent-encoded correctly`);
-    if (!s) continue;
+    if (s.includes(",") && !parseStop(s)) return fail("to", `${notAStop(s)} Don't percent-encode the commas between stops.`);
+    if (s) values.to.push(s);
+  }
+  if (values.to.length === 0) return fail("to", "has no places: list them, e.g. to=Kyoto@JPN,BR-BA,KOR");
+
+  const r = await resolveInvite(values, known, loadCities);
+  if (r.ok && r.value.stops.length === 0) return fail("to", `none of the places could be found: ${r.unknown.join(", ")}`);
+  return r;
+}
+
+/**
+ * Check an invite's fields and look its places up. Unlike a link, the result may have no stops at all
+ * (none written, or none found): the trip planner takes a half-written invite.
+ */
+export async function resolveInvite(values: RawInvite, known: KnownCodes, loadCities: () => Promise<CityRow[]>): Promise<DecodeResult> {
+  const specs: StopSpec[] = [];
+  for (const s of values.to) {
     const spec = parseStop(s);
-    if (!spec) {
-      const hint = s.includes(",") ? " Don't percent-encode the commas between stops." : "";
-      return fail("to", `"${s}" isn't a stop. Write a country code (JPN), a state code (BR-BA) or a city as Name@ISO3 (Kyoto@JPN).${hint}`);
-    }
+    if (!spec) return fail("to", notAStop(s));
     specs.push(spec);
   }
-  if (specs.length === 0) return fail("to", "has no places: list them, e.g. to=Kyoto@JPN,BR-BA,KOR");
   if (specs.length > MAX_STOPS) return fail("to", `has ${specs.length} places; the most is ${MAX_STOPS}`);
 
   const invite: Omit<Invite, "stops"> = {};
@@ -161,7 +183,7 @@ export async function decodeInvite(hash: string, known: KnownCodes, loadCities: 
   }
   if (values.end) {
     if (!isRealDate(values.end)) return fail("end", `"${values.end}" isn't a date written YYYY-MM-DD`);
-    if (!invite.date) return fail("end", "needs a start date (date=…)");
+    if (!invite.date) return fail("end", "needs a start date");
     if (values.end < invite.date) return fail("end", `is before the start date (${invite.date})`);
     invite.end = values.end;
   }
@@ -190,22 +212,45 @@ export async function decodeInvite(hash: string, known: KnownCodes, loadCities: 
       else unknown.push(`${spec.city}@${spec.iso}`);
     }
   }
-  if (stops.length === 0) return fail("to", `none of the places could be found: ${unknown.join(", ")}`);
   return { ok: true, value: { ...invite, stops }, unknown };
 }
 
-/** The hash for an invite, without the `#`. A city is written by name; decoding finds it again in the city list. */
+const packedSchema = z.object({
+  to: z.array(z.string()),
+  from: z.string().optional(),
+  email: z.string().optional(),
+  date: z.string().optional(),
+  end: z.string().optional(),
+  msg: z.string().optional(),
+});
+
+/** Read a compressed invite (the payload of `#i=…`). */
+async function decodePacked(payload: string, known: KnownCodes, loadCities: () => Promise<CityRow[]>): Promise<DecodeResult> {
+  const broken = fail("i", "can't be read: the link was cut off or changed on the way");
+  let raw: unknown;
+  try {
+    // lz-string's alphabet has no '%', so one means a chat app percent-encoded the link ('$' → '%24').
+    const json = LZString.decompressFromEncodedURIComponent(payload.includes("%") ? decodeURIComponent(payload) : payload);
+    raw = json ? JSON.parse(json) : undefined;
+  } catch {
+    return broken;
+  }
+  const parsed = packedSchema.safeParse(raw);
+  if (!parsed.success) return broken;
+  const r = await resolveInvite(parsed.data, known, loadCities);
+  if (r.ok && r.value.stops.length === 0) return fail("to", r.unknown.length ? `none of the places could be found: ${r.unknown.join(", ")}` : "has no places");
+  return r;
+}
+
+/** The hash for an invite, without the `#`: its fields, compressed. A city is written by name; decoding finds it again in the city list. */
 export function encodeInvite(i: Invite): string {
-  const parts = [
-    `to=${i.stops.map((s) => (isCityStop(s) ? `${encodeURIComponent(s.n)}@${s.c}` : s)).join(",")}`,
-  ];
-  const add = (field: InviteField, value: string | undefined) => value && parts.push(`${field}=${encodeURIComponent(value)}`);
-  add("from", i.from);
-  add("email", i.email);
-  add("date", i.date);
-  add("end", i.end);
-  add("msg", i.message);
-  return parts.join("&");
+  const raw: RawInvite = { to: i.stops.map((s) => (isCityStop(s) ? `${s.n}@${s.c}` : s)) };
+  if (i.from) raw.from = i.from;
+  if (i.email) raw.email = i.email;
+  if (i.date) raw.date = i.date;
+  if (i.end) raw.end = i.end;
+  if (i.message) raw.msg = i.message;
+  return `i=${LZString.compressToEncodedURIComponent(JSON.stringify(raw))}`;
 }
 
 export const INVITE_PATH = "/sandbox/travel-map/invite";

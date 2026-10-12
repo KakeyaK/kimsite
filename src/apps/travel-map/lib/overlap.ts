@@ -31,14 +31,14 @@ export function overlapColors(owner: TravelData, visitor: TravelData) {
   return { countries: compare(owner.countries, visitor.countries), regions: compare(owner.regions, visitor.regions) };
 }
 
-export type OverlapCounts = Record<OverlapKey, { countries: number; regions: number }>;
-
-export function overlapCounts(owner: TravelData, visitor: TravelData): OverlapCounts {
-  const out = Object.fromEntries(OVERLAP_KEYS.map((k) => [k, { countries: 0, regions: 0 }])) as OverlapCounts;
-  const { countries, regions } = overlapColors(owner, visitor);
-  for (const key of Object.values(countries)) out[key].countries++;
-  for (const key of Object.values(regions)) out[key].regions++;
-  return out;
+/** What each overlap colour stands for. */
+export function overlapLabels(ownerName: string): Record<OverlapKey, string> {
+  return {
+    "both-been": "Both been",
+    "both-want": "Both want to go",
+    "only-them": `Only ${ownerName}`,
+    "only-you": "Only you",
+  };
 }
 
 const OWNER_PHRASE: Record<Status | "none", string> = {

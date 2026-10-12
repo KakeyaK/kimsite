@@ -3,15 +3,14 @@ import { isEmptyData, type TravelData } from "@apps/travel-map/lib/data";
 import { atYear, regionColors, statusColors, yearRange } from "@apps/travel-map/lib/stats";
 import { countryName, regionByCode } from "@apps/travel-map/lib/meta";
 import type { PlaceRef } from "@apps/travel-map/lib/mapView";
-import { describeOverlap, overlapColors, overlapKey } from "@apps/travel-map/lib/overlap";
+import { describeOverlap, OVERLAP_KEYS, overlapColors, overlapKey, overlapLabels } from "@apps/travel-map/lib/overlap";
 import { createStore } from "@apps/travel-map/lib/storage";
 import { planTripUrl } from "@apps/travel-map/lib/stops";
 import { cn } from "@lib/utils";
 import { useMapView } from "./useMapView";
-import { StatsStrip } from "./StatsStrip";
 import { MapNotes } from "./MapNotes";
+import { legendCorner, MapLegend, STATUS_LEGEND, type LegendItem } from "./MapLegend";
 import { MyMapLink } from "./MyMapLink";
-import { OverlapLegend } from "./OverlapLegend";
 import { TimelineSlider } from "./TimelineSlider";
 import { btn, container, mapBox, MY_MAP_URL, overlay, STATUS_LABEL } from "./ui";
 
@@ -33,6 +32,11 @@ export default function MapViewer({ data, owner }: Props) {
     return isEmptyData(d) ? null : d;
   }, []);
   const range = useMemo(() => yearRange(data), [data]);
+  const legend = useMemo<LegendItem[]>(() => {
+    if (!overlap || !mine) return STATUS_LEGEND;
+    const label = overlapLabels(owner);
+    return OVERLAP_KEYS.map((key) => [key, label[key]]);
+  }, [overlap, mine, owner]);
   const shown = useMemo(() => (year === null || overlap ? data : atYear(data, year)), [data, year, overlap]);
 
   useEffect(() => {
@@ -82,6 +86,7 @@ export default function MapViewer({ data, owner }: Props) {
             )}
           </div>
         )}
+        {!error && <MapLegend class={legendCorner} items={legend} />}
         {selected && (
           <section class={cn(overlay, "absolute inset-x-3 bottom-3 z-10 space-y-2 p-4 md:inset-x-auto md:bottom-auto md:left-3 md:top-3 md:w-80")} aria-live="polite">
             <div class="flex items-start justify-between gap-2">
@@ -109,12 +114,9 @@ export default function MapViewer({ data, owner }: Props) {
       </div>
       <div class={cn(container, "space-y-6")}>
         {overlap && mine ? (
-          <OverlapLegend owner={owner} data={data} mine={mine} />
+          <p class="text-xs">"Been" means visited or lived. A place only one of you wants to go to isn't coloured.</p>
         ) : (
-          <>
-            {range && <TimelineSlider min={range[0]} max={range[1]} value={year} onChange={setYear} />}
-            <StatsStrip data={shown} />
-          </>
+          range && <TimelineSlider min={range[0]} max={range[1]} value={year} onChange={setYear} />
         )}
         <MapNotes />
       </div>

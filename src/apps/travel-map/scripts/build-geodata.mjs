@@ -25,7 +25,7 @@ const MIN_POP = 100_000;
 
 // Borders and names follow the UN. Natural Earth draws who controls a place on the ground; these undo that
 // where the UN says otherwise. Places the UN takes no position on or that it lists separately (Kosovo,
-// Taiwan, Hong Kong, Western Sahara, Kashmir's parts) stay their own areas; they just aren't countries.
+// Taiwan, Hong Kong, Western Sahara, Kashmir's parts) stay their own areas.
 /** Disputed areas (by Natural Earth BRK_A3) that belong, per the UN, to another country. */
 const UN_MOVES = { B89: "UKR" /* Crimea */, B16: "SYR" /* Golan Heights */, B19: "SAH" /* Morocco-held Western Sahara */ };
 /** Unrecognised states drawn as part of the country the UN recognises. */
@@ -35,8 +35,6 @@ const UN_MERGES = { CYN: "CYP" /* Northern Cyprus */, SOL: "SOM" /* Somaliland *
  * spelled out where it abbreviates them ("W. Sahara" → "Western Sahara"), so they can be searched.
  */
 const UN_NAMES = { FLK: "Falkland Islands (Malvinas)", TUR: "Türkiye", SWZ: "Eswatini" };
-/** The 193 UN members plus its two observer states (the Vatican and Palestine). Checked below. */
-const UN_STATES = 195;
 
 const tmp = mkdtempSync(join(tmpdir(), "geodata-"));
 mkdirSync("public/map", { recursive: true });
@@ -61,7 +59,7 @@ await mapshaper.runCommands(
     `-merge-layers target=countries,moves name=countries force ` +
     `-each 'ADM0_A3 = ${JSON.stringify(UN_MERGES)}[ADM0_A3] || ADM0_A3' ` +
     `-dissolve2 ADM0_A3 ` +
-    `-join ${neFile} keys=ADM0_A3,ADM0_A3 fields=NAME,NAME_LONG,CONTINENT,ADMIN,SOVEREIGNT,TYPE,UN_A3,LABEL_X,LABEL_Y,MIN_LABEL ` +
+    `-join ${neFile} keys=ADM0_A3,ADM0_A3 fields=NAME,NAME_LONG,CONTINENT,LABEL_X,LABEL_Y,MIN_LABEL ` +
     `-each 'NAME = ${JSON.stringify(UN_NAMES)}[ADM0_A3] || (NAME.includes(".") ? NAME_LONG : NAME)' ` +
     `-simplify 15% keep-shapes -o public/map/countries.geojson format=geojson precision=0.001`,
 );
@@ -80,10 +78,6 @@ function bboxOf(rings) {
   }
   return [w, s, e, n];
 }
-// A UN member or observer: has a UN (M49) code, which drops Kosovo and Taiwan, and is its own sovereign's
-// mainland feature (ADMIN === SOVEREIGNT), which drops territories (Hong Kong, Greenland, Jersey…).
-// "Indeterminate" drops Antarctica and Western Sahara; Palestine is added back (UN observer state).
-const isUnState = (p) => (p.UN_A3 !== "-099" && p.ADMIN === p.SOVEREIGNT && p.TYPE !== "Indeterminate") || p.ADM0_A3 === "PSX";
 const area = ([w, s, e, n]) => (e - w) * (n - s);
 const round = (v) => Math.round(v * 100) / 100;
 
@@ -93,14 +87,12 @@ const meta = simplified.features
     const box = polygons(f.geometry).map(bboxOf).sort((a, b) => area(b) - area(a))[0];
     const p = f.properties;
     return {
-      iso: p.ADM0_A3, name: p.NAME, continent: p.CONTINENT, bbox: box.map(round), unState: isUnState(p),
+      iso: p.ADM0_A3, name: p.NAME, continent: p.CONTINENT, bbox: box.map(round),
       // Where to put the name on the map, and how early it earns a spot (lower = bigger/more important).
       label: [round(p.LABEL_X), round(p.LABEL_Y)], labelRank: p.MIN_LABEL,
     };
   })
   .sort((a, b) => a.name.localeCompare(b.name));
-const unStates = meta.filter((m) => m.unState).length;
-if (unStates !== UN_STATES) throw new Error(`expected ${UN_STATES} UN member and observer states, got ${unStates}`);
 writeFileSync("src/apps/travel-map/lib/countries.json", JSON.stringify(meta));
 // The shipped GeoJSON only needs what the map reads; the other fields were for the meta above.
 for (const f of simplified.features) {
@@ -141,10 +133,12 @@ writeFileSync("src/apps/travel-map/lib/regions.json", JSON.stringify(regions));
 
 // 4. Cities, for trip stops.
 // GeoNames ISO-2 → Natural Earth ADM0_A3 via ISO_A2_EH (which is set even where ISO_A2 is -99).
-// Several features can share an ISO_A2_EH (Ashmore and Cartier Is. is also "AU"), so the UN state
-// wins and otherwise the first one seen is kept. Merged-away countries (Somaliland…) map to their UN country.
+// Several features can share an ISO_A2_EH (Ashmore and Cartier Is. is also "AU"), so the sovereign's own
+// mainland (ADMIN === SOVEREIGNT) wins and otherwise the first one seen is kept. Merged-away countries
+// (Somaliland…) map to their UN country.
+const isMainland = (p) => p.ADMIN === p.SOVEREIGNT;
 const iso2to3 = new Map();
-for (const f of [...ne.features].sort((a, b) => Number(isUnState(b.properties)) - Number(isUnState(a.properties)))) {
+for (const f of [...ne.features].sort((a, b) => Number(isMainland(b.properties)) - Number(isMainland(a.properties)))) {
   const { ISO_A2_EH: iso2, ADM0_A3: iso3 } = f.properties;
   if (iso2 && iso2 !== "-99" && !iso2to3.has(iso2)) iso2to3.set(iso2, UN_MERGES[iso3] ?? iso3);
 }

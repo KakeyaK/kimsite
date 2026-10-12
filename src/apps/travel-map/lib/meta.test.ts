@@ -1,6 +1,5 @@
 import { describe, it, expect } from "vitest";
 import { COUNTRIES, KNOWN_ISO, KNOWN_REGIONS, REGIONS, countryName, regionByCode, regionsOf, searchCountries, searchRegions } from "./meta";
-import { TOTAL_COUNTRIES } from "./stats";
 
 describe("country meta", () => {
   it("uses ADM0_A3 so France and Norway have real codes", () => {
@@ -30,14 +29,6 @@ describe("generated data (review fixes)", () => {
     expect(sydney?.[1]).toBe("AUS");
     expect(cities.some((c) => c[1] === "ATC")).toBe(false);
     expect(cities.every((c) => KNOWN_ISO.has(c[1]))).toBe(true);
-  });
-
-  it("counts exactly the UN's 195 member and observer states", () => {
-    const by = new Map(COUNTRIES.map((c) => [c.iso, c]));
-    for (const iso of ["FRA", "NOR", "AUS", "JPN", "VAT", "PSX", "USA", "CHN", "CYP", "SOM"]) expect(by.get(iso)?.unState, iso).toBe(true);
-    // territories, and places the UN doesn't list as states: drawn, but not counted
-    for (const iso of ["HKG", "GRL", "ATC", "FRO", "JEY", "PRI", "ATA", "KOS", "TWN", "SAH"]) expect(by.get(iso)?.unState, iso).toBe(false);
-    expect(COUNTRIES.filter((c) => c.unState)).toHaveLength(TOTAL_COUNTRIES);
   });
 
   it("draws unrecognised states as part of their UN country", () => {

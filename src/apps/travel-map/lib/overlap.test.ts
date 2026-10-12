@@ -1,6 +1,6 @@
 import { describe, it, expect } from "vitest";
 import type { Status, TravelData } from "./data";
-import { describeOverlap, overlapColors, overlapCounts, overlapKey } from "./overlap";
+import { describeOverlap, overlapColors, overlapKey } from "./overlap";
 
 const map = (countries: Record<string, Status>, regions: Record<string, Status> = {}): TravelData => ({
   version: 1,
@@ -26,7 +26,7 @@ describe("overlapKey", () => {
   });
 });
 
-describe("overlapColors and overlapCounts", () => {
+describe("overlapColors", () => {
   const owner = map({ JPN: "visited", BRA: "lived", FRA: "want", ITA: "want", USA: "visited" }, { "BR-BA": "lived", "BR-SP": "want" });
   const visitor = map({ JPN: "lived", FRA: "want", PRT: "visited", ITA: "visited", DEU: "want" }, { "BR-BA": "visited", "BR-SP": "want" });
 
@@ -34,15 +34,6 @@ describe("overlapColors and overlapCounts", () => {
     expect(overlapColors(owner, visitor)).toEqual({
       countries: { JPN: "both-been", BRA: "only-them", FRA: "both-want", ITA: "only-you", USA: "only-them", PRT: "only-you" },
       regions: { "BR-BA": "both-been", "BR-SP": "both-want" },
-    });
-  });
-
-  it("counts each category", () => {
-    expect(overlapCounts(owner, visitor)).toEqual({
-      "both-been": { countries: 1, regions: 1 },
-      "both-want": { countries: 1, regions: 1 },
-      "only-them": { countries: 2, regions: 0 },
-      "only-you": { countries: 2, regions: 0 },
     });
   });
 });

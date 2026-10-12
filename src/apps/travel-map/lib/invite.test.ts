@@ -47,10 +47,26 @@ describe("readable invite links", () => {
     expect(await roundTrip({ stops: [mianzhu, "JPN"] })).toEqual({ ok: true, value: { stops: [mianzhu, "JPN"] }, unknown: [] });
   });
 
-  it("builds URLs on the invite page", () => {
-    const u = new URL(inviteUrl("https://www.kakeya.kim", base));
+  it("builds URLs on the invite page, with nothing a chat app would need to escape", () => {
+    const u = new URL(inviteUrl("https://www.kakeya.kim", { ...base, message: "Vamos! 🇯🇵 & = # % \n**bold**" }));
     expect(u.pathname).toBe("/sandbox/travel-map/invite");
-    expect(u.hash).toBe("#to=JPN&from=Kim&date=2027-04-01&msg=Let's%20go!");
+    expect(u.hash).toMatch(/^#i=[A-Za-z0-9+$-]+$/);
+  });
+
+  it("makes a shorter link than spelling a long message out", () => {
+    const message = [
+      "# Two weeks in Japan 🌸",
+      "- **Kyoto**: Fushimi Inari at sunrise, before the tour buses; the upper loop is nearly empty by seven.",
+      "- **Tokyo**: ramen in Shinjuku the first night, no reservations, just follow the queue.",
+      "- **Seoul**: Gwangjang market for bindaetteok and far too many dumplings.",
+      "Bring comfortable shoes, a light rain jacket and an empty suitcase for snacks. Can't wait!",
+    ].join("\n\n");
+    expect(encodeInvite({ ...base, message }).length).toBeLessThan(encodeURIComponent(message).length);
+  });
+
+  it("reads a compressed link a chat app percent-encoded", async () => {
+    const hash = `#${encodeInvite(base).replace(/[+$]/g, encodeURIComponent)}`;
+    expect(await decode(hash)).toEqual({ ok: true, value: base, unknown: [] });
   });
 
   it("only loads the city list when the link has a city", async () => {
@@ -94,7 +110,11 @@ describe("skipped places", () => {
 
 describe("broken links name the field", () => {
   it.each([
-    ["", "to"],
+    ["", "i"],
+    ["#i=", "i"],
+    ["#i=not-an-invite", "i"],
+    [`#${encodeInvite(base).slice(0, -8)}`, "i"],
+    [`#${encodeInvite({ stops: ["ZZZ"] })}`, "to"],
     ["#from=Kim", "to"],
     ["#to=", "to"],
     ["#to=Kyoto", "to"],

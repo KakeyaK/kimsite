@@ -5,7 +5,7 @@ import { cn } from "@lib/utils";
 import { shareOrCopy } from "./share";
 import { btn, card, input } from "./ui";
 
-/** "Share my map": a link that carries a snapshot of the map. */
+/** "Share map": a link that carries a snapshot of the map. */
 export function ShareMap({ data }: { data: TravelData }) {
   const [name, setName] = useState("");
   const [notes, setNotes] = useState(false);
@@ -21,7 +21,7 @@ export function ShareMap({ data }: { data: TravelData }) {
 
   return (
     <section class={cn(card, "space-y-3 text-sm")} aria-labelledby="share-map-title">
-      <h2 id="share-map-title" class="text-lg font-semibold text-black dark:text-white">Share my map</h2>
+      <h2 id="share-map-title" class="text-lg font-semibold text-black dark:text-white">Share map</h2>
       <p>
         Send friends a link to your map, so they can see where you've been and compare it with theirs. The link is a
         snapshot: if you change your map later, share a new link.
@@ -36,7 +36,7 @@ export function ShareMap({ data }: { data: TravelData }) {
           Include my notes
         </label>
         <button type="button" class={cn(btn, "font-semibold text-black dark:text-white")} disabled={empty} onClick={share}>
-          🔗 Share my map
+          🔗 Share map
         </button>
       </div>
       {empty && <p>Mark a few places first.</p>}

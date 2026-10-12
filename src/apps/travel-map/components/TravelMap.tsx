@@ -11,8 +11,8 @@ import { useMapView } from "./useMapView";
 import { PlacePanel } from "./PlacePanel";
 import { PlaceSearch } from "./PlaceSearch";
 import { RegionList } from "./RegionList";
-import { StatsStrip } from "./StatsStrip";
 import { ImportExport } from "./ImportExport";
+import { legendCorner, MapLegend, STATUS_LEGEND } from "./MapLegend";
 import { MapNotes } from "./MapNotes";
 import { InviteBuilder } from "./InviteBuilder";
 import { Onboarding } from "./Onboarding";
@@ -106,7 +106,7 @@ export default function TravelMap() {
       {!store.isPersistent() && (
         <p role="status" class={cn(container, "text-sm")}>
           <span class="block rounded border border-amber-500/40 bg-amber-500/10 p-3">
-            Your browser is blocking storage, so changes here won't be saved after you leave. Use Export to keep a copy.
+            Your browser is blocking storage, so changes here won't be saved after you leave. Use "Export map" to keep a copy.
           </span>
         </p>
       )}
@@ -133,7 +133,14 @@ export default function TravelMap() {
 
         {showHelp && <Onboarding data={data} persistent={store.isPersistent()} onClose={closeHelp} />}
 
-        {selected && iso ? (
+        {!error && !selected && (
+          <p class={cn(overlay, "pointer-events-none absolute left-3 top-14 z-10 px-3 py-1.5 text-sm md:top-3")}>
+            Click a country, or search a place, to mark it.
+          </p>
+        )}
+        {!error && <MapLegend class={legendCorner} items={STATUS_LEGEND} />}
+
+        {selected && iso && (
           <div class="absolute inset-x-3 bottom-3 z-10 max-h-[55%] overflow-y-auto rounded-lg md:inset-x-auto md:bottom-auto md:left-3 md:top-3 md:max-h-[calc(100%-1.5rem)] md:w-80">
             {selected.kind === "region" ? (
               <PlacePanel
@@ -154,12 +161,6 @@ export default function TravelMap() {
               </PlacePanel>
             )}
           </div>
-        ) : (
-          !error && (
-            <p class={cn(overlay, "pointer-events-none absolute bottom-3 left-3 z-10 px-3 py-1.5 text-sm")}>
-              Click a country, or search a place, to mark it.
-            </p>
-          )
         )}
       </div>
 
@@ -169,7 +170,6 @@ export default function TravelMap() {
             <InviteBuilder stops={planning} onStopsChange={setPlanning} onClose={() => setPlanning(null)} />
           </div>
         )}
-        <StatsStrip data={data} />
         <ShareMap data={data} />
         <ImportExport data={data} onImport={update} onClear={() => { store.clear(); setData(emptyData()); }} />
         <MapNotes />

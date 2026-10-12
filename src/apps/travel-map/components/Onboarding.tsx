@@ -1,5 +1,5 @@
 import { useEffect, useRef } from "preact/hooks";
-import type { TravelData } from "@apps/travel-map/lib/data";
+import { isEmptyData, type TravelData } from "@apps/travel-map/lib/data";
 import { downloadJson } from "@apps/travel-map/lib/storage";
 import { cn } from "@lib/utils";
 import { btn, overlay } from "./ui";
@@ -13,6 +13,8 @@ interface Props {
 
 /** The welcome card over an empty map: how to mark places, and where the map is (not) kept. */
 export function Onboarding({ data, persistent, onClose }: Props) {
+  /** Reopened with "?" once there's something on the map; a new map has nothing to export. */
+  const canExport = !isEmptyData(data);
   const ref = useRef<HTMLElement>(null);
   useEffect(() => {
     ref.current?.focus();
@@ -37,7 +39,7 @@ export function Onboarding({ data, persistent, onClose }: Props) {
         <li>
           Your map is saved only in this browser. Clearing your browser data, or switching device, loses it.
         </li>
-        <li>Export it to a file to keep a copy, or to move it to another browser (Import is below the map).</li>
+        <li>Once you've marked some places, export your map to a file to keep a copy, or to move it to another browser ("Export map" and "Import map" are below the map).</li>
       </ul>
       {!persistent && (
         <p role="status" class="rounded border border-amber-500/40 bg-amber-500/10 p-2">
@@ -45,7 +47,7 @@ export function Onboarding({ data, persistent, onClose }: Props) {
         </p>
       )}
       <div class="flex flex-wrap gap-2">
-        <button type="button" class={btn} onClick={() => downloadJson(data)}>Export my map</button>
+        {canExport && <button type="button" class={btn} onClick={() => downloadJson(data)}>Export map</button>}
         <button type="button" class={cn(btn, "font-semibold text-black dark:text-white")} onClick={onClose}>Got it</button>
       </div>
     </section>
