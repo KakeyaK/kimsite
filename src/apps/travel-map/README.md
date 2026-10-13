@@ -11,6 +11,7 @@ friends on a trip (to a country, a state or a city). `/sandbox/travel-map` shows
 - `data/travel.json` — Kim's own map, shown at `/sandbox/travel-map`; `data/kim.ts` loads and validates it.
 - `styles.css` — the map's colors (`--map-*`), light and dark.
 - `scripts/build-geodata.mjs` — generates the geo data (see below).
+- `shortener/` — the invite link shortener at `go.kakeya.kim`, a Cloudflare Worker deployed on its own (see its [README](shortener/README.md)).
 
 Outside this folder, because Astro needs them there:
 
@@ -40,3 +41,4 @@ asynchronous. When a link is broken, the invite page names the field that's wron
 Nobody writes the link by hand: the trip planner (`InviteBuilder`) does. What is written by hand, or by an AI, is
 the invite as a document (`lib/inviteDoc.ts`): the same fields as a frontmatter, then the message in Markdown.
 The planner's source view (the code button) shows the invite that way and reads it back into the form.
+Its "Shorten link" button swaps the link for a `go.kakeya.kim/…` one (`shortener/`).

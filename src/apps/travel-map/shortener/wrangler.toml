@@ -1,0 +1,14 @@
+# The invite link shortener (see README.md). Deploy with `npm run shortener:deploy`.
+name = "kakeya-go"
+main = "worker.ts"
+compatibility_date = "2026-10-01"
+workers_dev = false
+routes = [{ pattern = "go.kakeya.kim", custom_domain = true }]
+
+[vars]
+SITE = "https://www.kakeya.kim"
+
+# Created once with `npx wrangler kv namespace create LINKS`, which prints the id to paste here.
+[[kv_namespaces]]
+binding = "LINKS"
+id = "REPLACE_WITH_KV_NAMESPACE_ID"

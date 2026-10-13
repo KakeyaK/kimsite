@@ -4,6 +4,7 @@ import { emailSchema, inviteUrl, MAX_FROM, MAX_MESSAGE, MAX_STOPS, type Invite, 
 import { inviteDoc, parseInviteDoc } from "@apps/travel-map/lib/inviteDoc";
 import { KNOWN_CODES } from "@apps/travel-map/lib/meta";
 import { placeToStop } from "@apps/travel-map/lib/places";
+import { shortenLink } from "@apps/travel-map/lib/shortLink";
 import { stopKey, stopList, stopName, type Stop } from "@apps/travel-map/lib/stops";
 import { cn } from "@lib/utils";
 import { PlaceSearch } from "./PlaceSearch";
@@ -26,6 +27,9 @@ export function InviteBuilder({ stops, onStopsChange, onClose }: Props) {
   const [end, setEnd] = useState("");
   const [email, setEmail] = useState("");
   const [status, setStatus] = useState("");
+  /** The short form of `long`, which stops applying as soon as the invite changes. */
+  const [short, setShort] = useState<{ long: string; short: string } | null>(null);
+  const [shortening, setShortening] = useState(false);
   /** The invite as a document (lib/inviteDoc.ts) while the source view is open; null in the form. */
   const [source, setSource] = useState<string | null>(null);
   const [sourceError, setSourceError] = useState<InviteError | null>(null);
@@ -47,7 +51,18 @@ export function InviteBuilder({ stops, onStopsChange, onClose }: Props) {
     return inv;
   }, [stops, from, message, date, end, email]);
   const invite = stops.length ? draft : null;
-  const url = invite ? inviteUrl(window.location.origin, invite) : "";
+  const longUrl = invite ? inviteUrl(window.location.origin, invite) : "";
+  const isShort = short !== null && short.long === longUrl;
+  const url = isShort ? short.short : longUrl;
+
+  async function shorten() {
+    const long = longUrl;
+    setShortening(true);
+    const s = await shortenLink(long);
+    setShortening(false);
+    if (s) setShort({ long, short: s });
+    setStatus(s ? "Shortened!" : "Couldn't shorten it right now. The full link works just as well.");
+  }
 
   function openSource() {
     setSource(inviteDoc(draft));
@@ -208,7 +223,7 @@ export function InviteBuilder({ stops, onStopsChange, onClose }: Props) {
           {url && (
             <div class="space-y-2 text-sm">
               <input class={input} readOnly value={url} aria-label="Invite link" onFocus={(e) => (e.currentTarget as HTMLInputElement).select()} />
-              {url.length > 2000 && <p class="text-amber-600 dark:text-amber-400">This link is long; some chat apps may cut it. Try a shorter message or fewer images.</p>}
+              {url.length > 2000 && <p class="text-amber-600 dark:text-amber-400">This link is long; some chat apps may cut it. Shorten it, or try a shorter message or fewer images.</p>}
               <div class="flex flex-wrap gap-2">
                 <button
                   type="button"
@@ -220,6 +235,11 @@ export function InviteBuilder({ stops, onStopsChange, onClose }: Props) {
                 >
                   Share link
                 </button>
+                {!isShort && (
+                  <button type="button" class={btn} disabled={shortening} onClick={shorten}>
+                    {shortening ? "Shortening…" : "Shorten link"}
+                  </button>
+                )}
                 <a class={btn} href={url} target="_blank" rel="noopener">Open invite</a>
               </div>
               <p role="status">{status}</p>

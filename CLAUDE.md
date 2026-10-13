@@ -14,6 +14,7 @@ Personal website built on Astro 5 (static output), based on the [Astro Nano](htt
 - `npm run lint` / `npm run lint:fix` — ESLint (Astro + TS + jsx-a11y)
 - `npm test` — Vitest (`src/**/*.test.ts`; today only the apps have tests)
 - `npm run geodata` — regenerates the travel map's geo data (needs network; output is committed)
+- `npm run shortener:deploy` — deploys the invite link shortener, a Cloudflare Worker outside the Astro build (see `src/apps/travel-map/shortener/README.md`)
 - `npm run astro -- --help` — Astro CLI
 
 Path alias: `@*` maps to `./src/*` (e.g. `@components/...`, `@lib/...`, `@layouts/...`, `@consts`, `@types`). Defined in `tsconfig.json`, which extends `astro/tsconfigs/strict`.
