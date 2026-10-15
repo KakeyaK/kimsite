@@ -19,7 +19,7 @@ Short links store the invite on Cloudflare, unlike full links, whose `#…` neve
 The domain stays registered (and paid for) at Porkbun; only its DNS moves. A Worker can serve `go.kakeya.kim` only if
 Cloudflare runs the DNS for `kakeya.kim`.
 
-1. Make a free Cloudflare account, then **Add a domain** → `kakeya.kim` → Free plan.
+1. Make a free Cloudflare account, then **Connect a domain** → `kakeya.kim` → Free plan (not "Transfer": that would move the registration away from Porkbun).
 2. Cloudflare copies the existing records. Before going on, compare them with Porkbun's DNS page (Domain Management →
    DNS) and add anything missing. The site needs:
    - `CNAME www → kakeyak.github.io`
