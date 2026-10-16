@@ -11,6 +11,7 @@ friends on a trip (to a country, a state or a city). `/sandbox/travel-map` shows
 - `data/travel.json` — Kim's own map, shown at `/sandbox/travel-map`; `data/kim.ts` loads and validates it.
 - `styles.css` — the map's colors (`--map-*`), light and dark.
 - `scripts/build-geodata.mjs` — generates the geo data (see below).
+- `shortener/` — the invite link shortener at `go.kakeya.kim`, a Cloudflare Worker deployed on its own (see its [README](shortener/README.md)).
 
 Outside this folder, because Astro needs them there:
 
@@ -31,11 +32,14 @@ the top of the script. States exist only for the countries in `REGION_COUNTRIES`
 
 ## Invites
 
-An invite is a link: `/sandbox/travel-map/invite#i=…`, its fields compressed with lz-string so a long message
-still fits (see `lib/invite.ts`). Older links spell the fields out (`#to=Kyoto@JPN,BR-BA,KOR&from=Kim&msg=…`) and
-still open. A city stop is written `Name@ISO3` and looked up in `public/map/cities.json`, so decoding is
-asynchronous. When a link is broken, the invite page names the field that's wrong. Shared maps (`#m=…` on
-`/shared`) are compressed the same way (`lib/sharedMap.ts`).
+An invite is a link: `/sandbox/travel-map/invite#i=…`, its fields compressed with lz-string (see `lib/invite.ts`).
+A city stop is written `Name@ISO3` and looked up in `public/map/cities.json`, so decoding is asynchronous. When a
+link is broken, the invite page names the field that's wrong. Shared maps (`#m=…` on `/shared`) are compressed the
+same way (`lib/sharedMap.ts`).
+
+That link is never shared: the trip planner's "Create link" stores the invite with the shortener (`shortener/`) and
+shows `go.kakeya.kim/<code>`, which forwards to it (`lib/shortLink.ts`). So an invite can be much longer than a
+link a chat app would carry.
 
 Nobody writes the link by hand: the trip planner (`InviteBuilder`) does. What is written by hand, or by an AI, is
 the invite as a document (`lib/inviteDoc.ts`): the same fields as a frontmatter, then the message in Markdown.

@@ -31,7 +31,7 @@ export default function InvitePage() {
   return (
     <div class={cn(container, "space-y-4")}>
       <h1 class="text-2xl font-semibold text-black dark:text-white">This invite looks broken 🧭</h1>
-      <p>The link may have been cut off when it was pasted. Ask your friend to send it again.</p>
+      <p>The link may be incomplete. Ask your friend to send it again.</p>
       <p class="text-sm">
         What's wrong: <code>{result.error.field}</code> {result.error.message}
       </p>

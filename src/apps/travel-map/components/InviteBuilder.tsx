@@ -1,9 +1,10 @@
 import { useMemo, useState } from "preact/hooks";
 import { loadCities } from "@apps/travel-map/lib/cities";
-import { emailSchema, inviteUrl, MAX_FROM, MAX_MESSAGE, MAX_STOPS, type Invite, type InviteError } from "@apps/travel-map/lib/invite";
+import { emailSchema, encodeInvite, inviteUrl, MAX_FROM, MAX_MESSAGE, MAX_STOPS, type Invite, type InviteError } from "@apps/travel-map/lib/invite";
 import { inviteDoc, parseInviteDoc } from "@apps/travel-map/lib/inviteDoc";
 import { KNOWN_CODES } from "@apps/travel-map/lib/meta";
 import { placeToStop } from "@apps/travel-map/lib/places";
+import { shortenInvite } from "@apps/travel-map/lib/shortLink";
 import { stopKey, stopList, stopName, type Stop } from "@apps/travel-map/lib/stops";
 import { cn } from "@lib/utils";
 import { PlaceSearch } from "./PlaceSearch";
@@ -26,6 +27,9 @@ export function InviteBuilder({ stops, onStopsChange, onClose }: Props) {
   const [end, setEnd] = useState("");
   const [email, setEmail] = useState("");
   const [status, setStatus] = useState("");
+  /** The short link made for `invite`; it stops applying as soon as the invite changes. */
+  const [link, setLink] = useState<{ invite: string; url: string } | null>(null);
+  const [creating, setCreating] = useState(false);
   /** The invite as a document (lib/inviteDoc.ts) while the source view is open; null in the form. */
   const [source, setSource] = useState<string | null>(null);
   const [sourceError, setSourceError] = useState<InviteError | null>(null);
@@ -47,7 +51,25 @@ export function InviteBuilder({ stops, onStopsChange, onClose }: Props) {
     return inv;
   }, [stops, from, message, date, end, email]);
   const invite = stops.length ? draft : null;
-  const url = invite ? inviteUrl(window.location.origin, invite) : "";
+  const encoded = invite ? encodeInvite(invite) : "";
+  /** The link to share, once made for the invite as it is now. Visitors only ever see short links. */
+  const url = link && link.invite === encoded ? link.url : "";
+
+  async function createLink() {
+    if (!invite) return;
+    const current = encoded;
+    setCreating(true);
+    setStatus("");
+    const short = await shortenInvite(current);
+    setCreating(false);
+    if (short) return setLink({ invite: current, url: short });
+    // On the dev server, keep testing with the full link (the shortener may not be deployed, or be offline).
+    if (import.meta.env.DEV) {
+      setLink({ invite: current, url: inviteUrl(window.location.origin, invite) });
+      return setStatus("Couldn't reach the shortener, so this is the full link (dev server only).");
+    }
+    setStatus("Couldn't create the link. Check your connection and try again.");
+  }
 
   function openSource() {
     setSource(inviteDoc(draft));
@@ -205,23 +227,33 @@ export function InviteBuilder({ stops, onStopsChange, onClose }: Props) {
             </div>
           )}
 
-          {url && (
+          {invite && (
             <div class="space-y-2 text-sm">
-              <input class={input} readOnly value={url} aria-label="Invite link" onFocus={(e) => (e.currentTarget as HTMLInputElement).select()} />
-              {url.length > 2000 && <p class="text-amber-600 dark:text-amber-400">This link is long; some chat apps may cut it. Try a shorter message or fewer images.</p>}
-              <div class="flex flex-wrap gap-2">
-                <button
-                  type="button"
-                  class={btn}
-                  onClick={async () => {
-                    const r = await shareOrCopy(url, `Trip to ${stopList(stops)}`);
-                    setStatus(r === "copied" ? "Link copied!" : r === "shared" ? "Shared!" : "Couldn't share. Copy the link above.");
-                  }}
-                >
-                  Share link
-                </button>
-                <a class={btn} href={url} target="_blank" rel="noopener">Open invite</a>
-              </div>
+              {url ? (
+                <>
+                  <input class={input} readOnly value={url} aria-label="Invite link" onFocus={(e) => (e.currentTarget as HTMLInputElement).select()} />
+                  <div class="flex flex-wrap gap-2">
+                    <button
+                      type="button"
+                      class={btn}
+                      onClick={async () => {
+                        const r = await shareOrCopy(url, `Trip to ${stopList(stops)}`);
+                        setStatus(r === "copied" ? "Link copied!" : r === "shared" ? "Shared!" : "Couldn't share. Copy the link above.");
+                      }}
+                    >
+                      Share link
+                    </button>
+                    <a class={btn} href={url} target="_blank" rel="noopener">Open invite</a>
+                  </div>
+                </>
+              ) : (
+                <>
+                  {link && <p>You changed the invite, so it needs a new link.</p>}
+                  <button type="button" class={cn(btn, "font-semibold text-black dark:text-white")} disabled={creating} onClick={createLink}>
+                    {creating ? "Creating link…" : "Create link"}
+                  </button>
+                </>
+              )}
               <p role="status">{status}</p>
             </div>
           )}

@@ -12,7 +12,8 @@
     "lint": "eslint .",
     "lint:fix": "eslint . --fix",
     "test": "vitest run",
-    "geodata": "node src/apps/travel-map/scripts/build-geodata.mjs"
+    "geodata": "node src/apps/travel-map/scripts/build-geodata.mjs",
+    "shortener:deploy": "npx wrangler@4 deploy -c src/apps/travel-map/shortener/wrangler.toml"
   },
   "dependencies": {
     "@astrojs/check": "^0.9.4",

@@ -1,6 +1,7 @@
+import LZString from "lz-string";
 import { describe, it, expect, vi } from "vitest";
 import type { CityRow } from "./cities";
-import { decodeInvite, encodeInvite, findCity, inviteUrl, MAX_MESSAGE, MAX_STOPS, type Invite } from "./invite";
+import { decodeInvite, encodeInvite, findCity, inviteUrl, MAX_MESSAGE, MAX_STOPS, type Invite, type RawInvite } from "./invite";
 
 const known = { countries: new Set(["JPN", "KOR", "BRA", "PRT", "CHN"]), regions: new Set(["BR-BA"]) };
 const rows: CityRow[] = [
@@ -16,10 +17,12 @@ const kyoto = { n: "Kyoto", c: "JPN", la: 35.01, lo: 135.77 };
 const base: Invite = { from: "Kim", stops: ["JPN"], message: "Let's go!", date: "2027-04-01" };
 const decode = (hash: string) => decodeInvite(hash, known, cities);
 const roundTrip = async (i: Invite) => decode(`#${encodeInvite(i)}`);
+/** A link with the fields as given, unchecked, the way encodeInvite packs them. */
+const link = (raw: Partial<RawInvite>) => `#i=${LZString.compressToEncodedURIComponent(JSON.stringify({ to: [], ...raw }))}`;
 
-describe("readable invite links", () => {
-  it("reads the example from the spec", async () => {
-    const r = await decode("#to=Kyoto@JPN,BR-BA,KOR&from=Kim&date=2027-03-01&end=2027-03-15&msg=Let%27s%20go!");
+describe("invite links", () => {
+  it("read every field", async () => {
+    const r = await decode(link({ to: ["Kyoto@JPN", "BR-BA", "KOR"], from: "Kim", date: "2027-03-01", end: "2027-03-15", msg: "Let's go!" }));
     expect(r).toEqual({
       ok: true,
       unknown: [],
@@ -47,38 +50,22 @@ describe("readable invite links", () => {
     expect(await roundTrip({ stops: [mianzhu, "JPN"] })).toEqual({ ok: true, value: { stops: [mianzhu, "JPN"] }, unknown: [] });
   });
 
-  it("builds URLs on the invite page, with nothing a chat app would need to escape", () => {
+  it("builds URLs on the invite page, with nothing that needs escaping", () => {
     const u = new URL(inviteUrl("https://www.kakeya.kim", { ...base, message: "Vamos! 🇯🇵 & = # % \n**bold**" }));
     expect(u.pathname).toBe("/sandbox/travel-map/invite");
     expect(u.hash).toMatch(/^#i=[A-Za-z0-9+$-]+$/);
   });
 
-  it("makes a shorter link than spelling a long message out", () => {
-    const message = [
-      "# Two weeks in Japan 🌸",
-      "- **Kyoto**: Fushimi Inari at sunrise, before the tour buses; the upper loop is nearly empty by seven.",
-      "- **Tokyo**: ramen in Shinjuku the first night, no reservations, just follow the queue.",
-      "- **Seoul**: Gwangjang market for bindaetteok and far too many dumplings.",
-      "Bring comfortable shoes, a light rain jacket and an empty suitcase for snacks. Can't wait!",
-    ].join("\n\n");
-    expect(encodeInvite({ ...base, message }).length).toBeLessThan(encodeURIComponent(message).length);
-  });
-
-  it("reads a compressed link a chat app percent-encoded", async () => {
-    const hash = `#${encodeInvite(base).replace(/[+$]/g, encodeURIComponent)}`;
-    expect(await decode(hash)).toEqual({ ok: true, value: base, unknown: [] });
-  });
-
   it("only loads the city list when the link has a city", async () => {
     const load = vi.fn(cities);
-    await decodeInvite("#to=JPN,BR-BA", known, load);
+    await decodeInvite(link({ to: ["JPN", "BR-BA"] }), known, load);
     expect(load).not.toHaveBeenCalled();
-    await decodeInvite("#to=Kyoto@JPN", known, load);
+    await decodeInvite(link({ to: ["Kyoto@JPN"] }), known, load);
     expect(load).toHaveBeenCalledOnce();
   });
 
-  it("is lenient: lowercase codes, spaces, + for a space, a stray %, an empty field", async () => {
-    const r = await decode("#to=jpn, kyoto@jpn&from=Kim+K&msg=100%+fun&email=");
+  it("is lenient: lowercase codes, spaces, an empty field", async () => {
+    const r = await decode(link({ to: ["jpn", " kyoto@jpn"], from: "Kim K", msg: "100% fun", email: "" }));
     expect(r).toEqual({ ok: true, unknown: [], value: { stops: ["JPN", kyoto], from: "Kim K", message: "100% fun" } });
   });
 });
@@ -98,12 +85,12 @@ describe("cities", () => {
 
 describe("skipped places", () => {
   it("drops unknown codes and cities that can't be found, and lists them", async () => {
-    const r = await decode("#to=JPN,ZZZ,BR-XX,Atlantis@JPN,Kyoto@YYY");
+    const r = await decode(link({ to: ["JPN", "ZZZ", "BR-XX", "Atlantis@JPN", "Kyoto@YYY"] }));
     expect(r).toEqual({ ok: true, value: { stops: ["JPN"] }, unknown: ["ZZZ", "BR-XX", "Atlantis@JPN", "Kyoto@YYY"] });
   });
 
   it("skips the cities when the city list fails to load", async () => {
-    const r = await decodeInvite("#to=JPN,Kyoto@JPN", known, () => Promise.reject(new Error("offline")));
+    const r = await decodeInvite(link({ to: ["JPN", "Kyoto@JPN"] }), known, () => Promise.reject(new Error("offline")));
     expect(r).toEqual({ ok: true, value: { stops: ["JPN"] }, unknown: ["Kyoto@JPN"] });
   });
 });
@@ -114,24 +101,19 @@ describe("broken links name the field", () => {
     ["#i=", "i"],
     ["#i=not-an-invite", "i"],
     [`#${encodeInvite(base).slice(0, -8)}`, "i"],
+    ["#to=JPN&from=Kim", "i"],
     [`#${encodeInvite({ stops: ["ZZZ"] })}`, "to"],
-    ["#from=Kim", "to"],
-    ["#to=", "to"],
-    ["#to=Kyoto", "to"],
-    ["#to=Kyoto%40JPN%2CKOR", "to"],
-    [`#to=${Array(MAX_STOPS + 1).fill("JPN").join(",")}`, "to"],
-    ["#to=ZZZ,Atlantis@JPN", "to"],
-    ["#to=JPN&title=Trip", "title"],
-    ["#to=JPN&to=KOR", "to"],
-    ["#to=JPN&from", "from"],
-    [`#to=JPN&from=${"x".repeat(81)}`, "from"],
-    ["#to=JPN&email=kim%20at%20example", "email"],
-    ["#to=JPN&date=next%20spring", "date"],
-    ["#to=JPN&date=2027-02-30", "date"],
-    ["#to=JPN&end=2027-04-01", "end"],
-    ["#to=JPN&date=2027-04-10&end=2027-04-01", "end"],
-    [`#to=JPN&msg=${"x".repeat(MAX_MESSAGE + 1)}`, "msg"],
-    ["#to=JPN&msg=%E0%A4", "msg"],
+    [link({}), "to"],
+    [link({ to: ["Kyoto"] }), "to"],
+    [link({ to: Array(MAX_STOPS + 1).fill("JPN") }), "to"],
+    [link({ to: ["ZZZ", "Atlantis@JPN"] }), "to"],
+    [link({ to: ["JPN"], from: "x".repeat(81) }), "from"],
+    [link({ to: ["JPN"], email: "kim at example" }), "email"],
+    [link({ to: ["JPN"], date: "next spring" }), "date"],
+    [link({ to: ["JPN"], date: "2027-02-30" }), "date"],
+    [link({ to: ["JPN"], end: "2027-04-01" }), "end"],
+    [link({ to: ["JPN"], date: "2027-04-10", end: "2027-04-01" }), "end"],
+    [link({ to: ["JPN"], msg: "x".repeat(MAX_MESSAGE + 1) }), "msg"],
   ])("%j → error in %s", async (hash, field) => {
     const r = await decode(hash);
     expect(r.ok).toBe(false);
@@ -139,10 +121,5 @@ describe("broken links name the field", () => {
       expect(r.error.field).toBe(field);
       expect(r.error.message.length).toBeGreaterThan(5);
     }
-  });
-
-  it("explains encoded commas between stops", async () => {
-    const r = await decode("#to=Kyoto%40JPN%2CKOR");
-    expect(!r.ok && r.error.message).toMatch(/commas between stops/);
   });
 });

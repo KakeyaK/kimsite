@@ -22,3 +22,6 @@ pnpm-debug.log*
 .DS_Store
 
 tasks/
+# wrangler (the invite link shortener): local state and secrets
+.wrangler/
+.dev.vars*
