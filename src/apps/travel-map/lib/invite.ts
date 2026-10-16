@@ -6,11 +6,14 @@ import { fold } from "./search";
 import { isCityStop, isKnownStop, stopSchema, type Stop } from "./stops";
 
 export const MAX_STOPS = 10;
-/** The message is Markdown (it can hold image links), rendered safely by components/markdown.tsx. */
-export const MAX_MESSAGE = 3000;
+/**
+ * The message is Markdown (it can hold image links), rendered safely by components/markdown.tsx. Invites are shared as
+ * short links (lib/shortLink.ts), so the message never has to fit in a URL; the shortener takes the largest one.
+ */
+export const MAX_MESSAGE = 20_000;
 export const MAX_FROM = 80;
 /** Images shown in a message; more are left out. */
-export const MAX_MD_IMAGES = 6;
+export const MAX_MD_IMAGES = 12;
 
 const dateSchema = z.string().regex(/^\d{4}-\d{2}-\d{2}$/);
 export const emailSchema = z.string().email().max(254);
@@ -32,8 +35,8 @@ export type Invite = z.infer<typeof inviteSchema>;
 
 /*
  * The link: /sandbox/travel-map/invite#i=…, the fields below as JSON, compressed with lz-string (like a
- * shared map's #m=…) so a long message still makes a link that chat apps don't cut. The trip planner writes
- * it; what people (and language models) write by hand is the invite document, which has the same fields
+ * shared map's #m=…). The trip planner stores it with the shortener and shares only the short link
+ * (lib/shortLink.ts), which opens #s=<code>; what people (and language models) write by hand is the invite document, which has the same fields
  * (lib/inviteDoc.ts).
  *
  * Links made before the compression spell the fields out, and still open:

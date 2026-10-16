@@ -1,16 +1,22 @@
 # Invite link shortener
 
-`go.kakeya.kim/Ab3dE9x` → a long invite link. A Cloudflare Worker (`worker.ts`) with a KV store, on Cloudflare's
-free plan. It isn't part of the Astro build: it's deployed on its own, by hand, and only when `worker.ts` changes.
+`go.kakeya.kim/Ab3dE9x` → an invite. A Cloudflare Worker (`worker.ts`) with a KV store, on Cloudflare's free plan. It
+isn't part of the Astro build: it's deployed on its own, by hand, and only when `worker.ts` changes.
 
-- `POST /` with `{"url": "…"}` stores an invite and answers `{"url": "https://go.kakeya.kim/<code>"}`. Only links
-  starting with `https://www.kakeya.kim/sandbox/travel-map/invite#` are taken, so the domain can't front spam.
-- `GET /<code>` redirects to the invite, `#…` included.
-- The trip planner's "Shorten link" button calls it (`lib/shortLink.ts`). If it fails, the planner keeps the full
-  link, which always works.
+Every invite is shared this way: the trip planner's "Create link" button stores the invite and shows its short link,
+and visitors never see a full one. Since the invite isn't carried in a URL, it can be long (a message of up to
+`MAX_MESSAGE` characters in `lib/invite.ts`).
 
-Short links store the invite on Cloudflare, unlike full links, whose `#…` never leaves the browser. Free-plan limits
-(check Cloudflare's pricing page): 100k redirects and 1,000 new links a day.
+- `POST /` with `{"invite": "i=…"}` (what `encodeInvite` makes) stores it and answers
+  `{"url": "https://go.kakeya.kim/<code>"}`. Anything that isn't an invite is refused, and the Worker only ever
+  redirects to the invite page, so the domain can't front spam.
+- `GET /<code>` redirects to `https://www.kakeya.kim/sandbox/travel-map/invite#s=<code>`.
+- `GET /api/<code>` answers `{"invite": "i=…"}`; the invite page fetches it (`lib/shortLink.ts`) and opens the
+  invite. Full links (`#i=…`, `#to=…`) still open without it.
+
+The same invite always gets the same code. Invites are stored on Cloudflare, so anyone with a code can read its
+invite. Free-plan limits (check Cloudflare's pricing page): 100k opened invites and 1,000 new ones a day. On the dev
+server, which the shortener doesn't answer, the planner falls back to a full link.
 
 ## Setup (once)
 
@@ -42,5 +48,5 @@ npm run shortener:deploy
 ```
 
 `custom_domain = true` in `wrangler.toml` makes Cloudflare create the `go` DNS record and its certificate. Check with
-`curl -i https://go.kakeya.kim/` (a redirect to the site), then try "Shorten link" in the trip planner on the live site.
+`curl -i https://go.kakeya.kim/` (a redirect to the site), then try "Create link" in the trip planner on the live site.
 To use another name than `go`, change it in `wrangler.toml` and `lib/shortLink.ts`.

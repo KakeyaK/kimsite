@@ -1,14 +1,15 @@
 import { useEffect, useState } from "preact/hooks";
 import { loadCities } from "@apps/travel-map/lib/cities";
-import { decodeInvite, type DecodeResult } from "@apps/travel-map/lib/invite";
+import type { DecodeResult } from "@apps/travel-map/lib/invite";
 import { KNOWN_CODES } from "@apps/travel-map/lib/meta";
+import { readInviteHash } from "@apps/travel-map/lib/shortLink";
 import { cn } from "@lib/utils";
 import { InviteView } from "./InviteView";
 import { btn, container, MY_MAP_URL } from "./ui";
 
 export default function InvitePage() {
   const [hash, setHash] = useState(() => window.location.hash);
-  /** null while decoding: a city stop needs the city list, which is fetched. */
+  /** null while decoding: a short link's invite and a city stop's city list are fetched. */
   const [result, setResult] = useState<DecodeResult | null>(null);
 
   useEffect(() => {
@@ -21,7 +22,7 @@ export default function InvitePage() {
   useEffect(() => {
     let cancelled = false;
     setResult(null);
-    void decodeInvite(hash, KNOWN_CODES, loadCities).then((r) => !cancelled && setResult(r));
+    void readInviteHash(hash, KNOWN_CODES, loadCities).then((r) => !cancelled && setResult(r));
     return () => { cancelled = true; };
   }, [hash]);
 
@@ -31,7 +32,7 @@ export default function InvitePage() {
   return (
     <div class={cn(container, "space-y-4")}>
       <h1 class="text-2xl font-semibold text-black dark:text-white">This invite looks broken 🧭</h1>
-      <p>The link may have been cut off when it was pasted. Ask your friend to send it again.</p>
+      <p>The link may be incomplete. Ask your friend to send it again.</p>
       <p class="text-sm">
         What's wrong: <code>{result.error.field}</code> {result.error.message}
       </p>

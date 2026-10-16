@@ -55,7 +55,7 @@ describe("renderMarkdown", () => {
   });
 
   it(`caps images at ${MAX_MD_IMAGES}`, () => {
-    const md = Array.from({ length: 10 }, (_, i) => `![${i}](https://example.com/${i}.jpg)`).join("\n\n");
+    const md = Array.from({ length: MAX_MD_IMAGES + 4 }, (_, i) => `![${i}](https://example.com/${i}.jpg)`).join("\n\n");
     expect(html(md).match(/<img/g)).toHaveLength(MAX_MD_IMAGES);
   });
 
@@ -69,8 +69,8 @@ describe("imageStats", () => {
     const md = [
       "![a](https://x.com/a.jpg)",
       "![b](http://x.com/b.jpg)",
-      ...Array.from({ length: 7 }, (_, i) => `![${i}](https://x.com/${i}.jpg)`),
+      ...Array.from({ length: MAX_MD_IMAGES + 1 }, (_, i) => `![${i}](https://x.com/${i}.jpg)`),
     ].join(" ");
-    expect(imageStats(md)).toEqual({ total: 9, shown: MAX_MD_IMAGES });
+    expect(imageStats(md)).toEqual({ total: MAX_MD_IMAGES + 3, shown: MAX_MD_IMAGES });
   });
 });
