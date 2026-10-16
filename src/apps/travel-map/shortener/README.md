@@ -3,16 +3,15 @@
 `go.kakeya.kim/Ab3dE9x` → an invite. A Cloudflare Worker (`worker.ts`) with a KV store, on Cloudflare's free plan. It
 isn't part of the Astro build: it's deployed on its own, by hand, and only when `worker.ts` changes.
 
-Every invite is shared this way: the trip planner's "Create link" button stores the invite and shows its short link,
-and visitors never see a full one. Since the invite isn't carried in a URL, it can be long (a message of up to
-`MAX_MESSAGE` characters in `lib/invite.ts`).
+Every invite is shared this way: the trip planner's "Create link" button stores the invite and shows only its short
+link. Since the full link is never pasted anywhere, an invite can be long (a message of up to `MAX_MESSAGE`
+characters in `lib/invite.ts`).
 
 - `POST /` with `{"invite": "i=…"}` (what `encodeInvite` makes) stores it and answers
   `{"url": "https://go.kakeya.kim/<code>"}`. Anything that isn't an invite is refused, and the Worker only ever
-  redirects to the invite page, so the domain can't front spam.
-- `GET /<code>` redirects to `https://www.kakeya.kim/sandbox/travel-map/invite#s=<code>`.
-- `GET /api/<code>` answers `{"invite": "i=…"}`; the invite page fetches it (`lib/shortLink.ts`) and opens the
-  invite. Full links (`#i=…`, `#to=…`) still open without it.
+  sends visitors to the invite page, so the domain can't front spam.
+- `GET /<code>` sends the browser to `https://www.kakeya.kim/sandbox/travel-map/invite#i=…`: a 302, or, for an
+  invite whose link is longer than `MAX_REDIRECT`, a tiny page that forwards it (Cloudflare caps header sizes).
 
 The same invite always gets the same code. Invites are stored on Cloudflare, so anyone with a code can read its
 invite. Free-plan limits (check Cloudflare's pricing page): 100k opened invites and 1,000 new ones a day. On the dev

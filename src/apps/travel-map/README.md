@@ -32,13 +32,15 @@ the top of the script. States exist only for the countries in `REGION_COUNTRIES`
 
 ## Invites
 
-An invite is a link: `/sandbox/travel-map/invite#i=…`, its fields compressed with lz-string (see `lib/invite.ts`). Older links spell the fields out (`#to=Kyoto@JPN,BR-BA,KOR&from=Kim&msg=…`) and
-still open. A city stop is written `Name@ISO3` and looked up in `public/map/cities.json`, so decoding is
-asynchronous. When a link is broken, the invite page names the field that's wrong. Shared maps (`#m=…` on
-`/shared`) are compressed the same way (`lib/sharedMap.ts`).
+An invite is a link: `/sandbox/travel-map/invite#i=…`, its fields compressed with lz-string (see `lib/invite.ts`).
+A city stop is written `Name@ISO3` and looked up in `public/map/cities.json`, so decoding is asynchronous. When a
+link is broken, the invite page names the field that's wrong. Shared maps (`#m=…` on `/shared`) are compressed the
+same way (`lib/sharedMap.ts`).
+
+That link is never shared: the trip planner's "Create link" stores the invite with the shortener (`shortener/`) and
+shows `go.kakeya.kim/<code>`, which forwards to it (`lib/shortLink.ts`). So an invite can be much longer than a
+link a chat app would carry.
 
 Nobody writes the link by hand: the trip planner (`InviteBuilder`) does. What is written by hand, or by an AI, is
 the invite as a document (`lib/inviteDoc.ts`): the same fields as a frontmatter, then the message in Markdown.
 The planner's source view (the code button) shows the invite that way and reads it back into the form.
-Visitors only see short links: the planner's "Create link" stores the invite with the shortener (`shortener/`) and
-shows `go.kakeya.kim/<code>`, which opens `/invite#s=<code>`; the page fetches the invite back (`lib/shortLink.ts`).

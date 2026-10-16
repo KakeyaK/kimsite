@@ -2,14 +2,14 @@
  * The invite link shortener: a Cloudflare Worker at go.kakeya.kim (see README.md). It stores invites, not links, so
  * every short link leads to the invite page and nobody can hide another address behind the domain.
  *
- *   POST /             {"invite": "i=…"}  →  {"url": "https://go.kakeya.kim/Ab3dE9x"}
- *   GET  /Ab3dE9x      →  302 to https://www.kakeya.kim/sandbox/travel-map/invite#s=Ab3dE9x
- *   GET  /api/Ab3dE9x  →  {"invite": "i=…"}, which the invite page fetches and opens
+ *   POST /         {"invite": "i=…"}  →  {"url": "https://go.kakeya.kim/Ab3dE9x"}
+ *   GET  /Ab3dE9x  →  https://www.kakeya.kim/sandbox/travel-map/invite#i=…
  *
- * The invite is what lib/invite.ts's encodeInvite makes. Since it never travels in a URL, it can be far longer than a
- * link a chat app would carry. A code is the start of the invite's SHA-256, so shortening the same invite twice gives
- * the same code and costs a KV read instead of a write. On the rare clash with another invite, the code grows a
- * character.
+ * The invite is what lib/invite.ts's encodeInvite makes. Only the short link is shared, so the invite can be far longer
+ * than a link a chat app would carry. Most go out as a 302; one too long for a header (Cloudflare caps them) gets a
+ * tiny page that forwards the browser instead. A code is the start of the invite's SHA-256, so shortening the same
+ * invite twice gives the same code and costs a KV read instead of a write. On the rare clash with another invite, the
+ * code grows a character.
  */
 
 /** The parts of Cloudflare's KVNamespace used here (the full type lives in @cloudflare/workers-types). */
@@ -31,9 +31,9 @@ export const MAX_INVITE = 128_000;
 const INVITE_RE = /^i=[A-Za-z0-9+$-]+$/;
 const MIN_CODE = 7;
 const MAX_CODE = 12;
-const CODE = `[0-9A-Za-z]{${MIN_CODE},${MAX_CODE}}`;
-const REDIRECT_RE = new RegExp(`^/(${CODE})$`);
-const API_RE = new RegExp(`^/api/(${CODE})$`);
+const CODE_RE = new RegExp(`^/([0-9A-Za-z]{${MIN_CODE},${MAX_CODE}})$`);
+/** The longest invite URL sent in a Location header; longer ones get the forwarding page. */
+export const MAX_REDIRECT = 8_000;
 const ALPHABET = "0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz";
 
 /** The invite's SHA-256 in base 62, MAX_CODE characters long. */
@@ -71,15 +71,27 @@ export function rejectInvite(invite: unknown): string | null {
 function cors(env: Env, headers: Record<string, string> = {}): Headers {
   return new Headers({
     "Access-Control-Allow-Origin": env.SITE,
-    "Access-Control-Allow-Methods": "GET, POST",
+    "Access-Control-Allow-Methods": "POST",
     "Access-Control-Allow-Headers": "Content-Type",
     Vary: "Origin",
     ...headers,
   });
 }
 
-const json = (env: Env, body: unknown, status = 200, headers: Record<string, string> = {}) =>
-  new Response(JSON.stringify(body), { status, headers: cors(env, { "Content-Type": "application/json", ...headers }) });
+const json = (env: Env, body: unknown, status = 200) =>
+  new Response(JSON.stringify(body), { status, headers: cors(env, { "Content-Type": "application/json" }) });
+
+/** A code always holds the same invite, so the answer can be cached. */
+const CACHE = { "Cache-Control": "public, max-age=86400" };
+
+/** Send the browser to the invite. The URL is the site plus lz-string's alphabet, so it needs no escaping in HTML. */
+function forward(target: string): Response {
+  if (target.length <= MAX_REDIRECT) return new Response(null, { status: 302, headers: { Location: target, ...CACHE } });
+  const html = `<!doctype html><meta charset="utf-8"><meta name="robots" content="noindex"><title>Trip invite</title>
+<meta http-equiv="refresh" content="0;url=${target}"><script>location.replace(${JSON.stringify(target)})</script>
+<p><a href="${target}">Open the invite</a></p>`;
+  return new Response(html, { headers: { "Content-Type": "text/html; charset=utf-8", ...CACHE } });
+}
 
 export default {
   async fetch(request: Request, env: Env): Promise<Response> {
@@ -98,22 +110,9 @@ export default {
     if (request.method !== "GET" && request.method !== "HEAD") return new Response("Method not allowed", { status: 405 });
     if (pathname === "/") return Response.redirect(env.SITE, 302);
 
-    // A code always holds the same invite, so both answers can be cached.
-    const api = API_RE.exec(pathname)?.[1];
-    if (api) {
-      const invite = await env.LINKS.get(api);
-      return invite
-        ? json(env, { invite }, 200, { "Cache-Control": "public, max-age=86400" })
-        : json(env, { error: "This invite doesn't exist." }, 404);
-    }
-
-    const code = REDIRECT_RE.exec(pathname)?.[1];
-    if (!code || !(await env.LINKS.get(code))) {
-      return new Response("This link doesn't exist.", { status: 404, headers: { "Content-Type": "text/plain; charset=utf-8" } });
-    }
-    return new Response(null, {
-      status: 302,
-      headers: { Location: `${env.SITE}${INVITE_PATH}#s=${code}`, "Cache-Control": "public, max-age=86400" },
-    });
+    const code = CODE_RE.exec(pathname)?.[1];
+    const invite = code ? await env.LINKS.get(code) : null;
+    if (!invite) return new Response("This link doesn't exist.", { status: 404, headers: { "Content-Type": "text/plain; charset=utf-8" } });
+    return forward(`${env.SITE}${INVITE_PATH}#${invite}`);
   },
 };

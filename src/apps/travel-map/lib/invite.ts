@@ -35,25 +35,18 @@ export type Invite = z.infer<typeof inviteSchema>;
 
 /*
  * The link: /sandbox/travel-map/invite#i=…, the fields below as JSON, compressed with lz-string (like a
- * shared map's #m=…). The trip planner stores it with the shortener and shares only the short link
- * (lib/shortLink.ts), which opens #s=<code>; what people (and language models) write by hand is the invite document, which has the same fields
- * (lib/inviteDoc.ts).
- *
- * Links made before the compression spell the fields out, and still open:
- *
- *   /sandbox/travel-map/invite#to=Kyoto@JPN,BR-BA,KOR&from=Kim&date=2027-03-01&end=2027-03-15&msg=…
- *
- * In both, a stop is a country code (JPN), a state code (BR-BA) or a city, Name@ISO3, looked up by name in
- * the city list.
+ * shared map's #m=…). Nobody shares it: the trip planner stores the invite with the shortener and shares the short
+ * link (lib/shortLink.ts), which forwards here. What people (and language models) write by hand is the invite
+ * document, which has the same fields (lib/inviteDoc.ts). A stop is a country code (JPN), a state code (BR-BA) or a
+ * city, Name@ISO3, looked up by name in the city list.
  */
-export const INVITE_FIELDS = ["to", "from", "email", "date", "end", "msg"] as const;
-export type InviteField = (typeof INVITE_FIELDS)[number];
+export type InviteField = "to" | "from" | "email" | "date" | "end" | "msg";
 
 /** What's wrong with a link, for the error page: the field, and what it should look like. */
 export type InviteError = { field: string; message: string };
 export type DecodeResult = { ok: true; value: Invite; unknown: string[] } | { ok: false; error: InviteError };
 
-/** An invite's fields as written (in a link or a document), decoded and trimmed, before anything is checked. */
+/** An invite's fields as written (in a link or a document), trimmed, before anything is checked. */
 export type RawInvite = { to: string[] } & Partial<Record<Exclude<InviteField, "to">, string>>;
 
 /** A stop as written, before cities are looked up. */
@@ -61,20 +54,6 @@ type StopSpec = { code: string } | { city: string; iso: string };
 
 const COUNTRY_RE = /^[A-Z]{3}$/;
 const REGION_RE = /^[A-Z]{2}-[A-Z0-9]{1,3}$/;
-
-/** Percent-decode a value; `+` is a space, and a stray `%` (as in "100% fun") is kept as is. Null if it can't be decoded. */
-function decodeValue(s: string): string | null {
-  const plain = s.replace(/\+/g, " ");
-  try {
-    return decodeURIComponent(plain);
-  } catch {
-    try {
-      return decodeURIComponent(plain.replace(/%(?![0-9A-Fa-f]{2})/g, "%25"));
-    } catch {
-      return null;
-    }
-  }
-}
 
 function parseStop(s: string): StopSpec | null {
   const at = s.lastIndexOf("@");
@@ -113,49 +92,15 @@ const fail = (field: string, message: string): DecodeResult => ({ ok: false, err
 const notAStop = (s: string) => `"${s}" isn't a stop. Write a country code (JPN), a state code (BR-BA) or a city as Name@ISO3 (Kyoto@JPN).`;
 
 /**
- * Read an invite from a link's hash (`#i=…`, or the older `#to=…&from=…`). Cities are looked up in `loadCities()`, which
- * is only called when the link has one. Places that can't be found are skipped and listed in `unknown`;
- * anything else wrong with the link is an error naming the field.
+ * Read an invite from a link's hash (`#i=…`). Cities are looked up in `loadCities()`, which is only called when the
+ * invite has one. Places that can't be found are skipped and listed in `unknown`; anything else wrong with the invite
+ * is an error naming the field.
  */
 export async function decodeInvite(hash: string, known: KnownCodes, loadCities: () => Promise<CityRow[]>): Promise<DecodeResult> {
   const body = hash.replace(/^#/, "");
   if (!body) return fail("i", "is missing: the link has no invite in it");
-  if (body.startsWith("i=")) return decodePacked(body.slice(2), known, loadCities);
-
-  const raw: Partial<Record<InviteField, string>> = {};
-  for (const part of body.split("&")) {
-    if (!part) continue;
-    const eq = part.indexOf("=");
-    const key = eq === -1 ? part : part.slice(0, eq);
-    if (!(INVITE_FIELDS as readonly string[]).includes(key)) {
-      return fail(key, `isn't a field. The fields are ${INVITE_FIELDS.join(", ")}, each written as name=value and separated by &`);
-    }
-    if (eq === -1) return fail(key, `has no value: write ${key}=…`);
-    if (raw[key as InviteField] !== undefined) return fail(key, "appears more than once");
-    raw[key as InviteField] = part.slice(eq + 1);
-  }
-
-  const values: RawInvite = { to: [] };
-  for (const field of INVITE_FIELDS) {
-    if (field === "to" || raw[field] === undefined) continue;
-    const v = decodeValue(raw[field]!);
-    if (v === null) return fail(field, "isn't percent-encoded correctly");
-    if (v.trim()) values[field] = v.trim();
-  }
-
-  // Stops: split on the commas first, so a comma inside a city name can be encoded as %2C.
-  if (!raw.to) return fail("to", "is missing: list the places, e.g. to=Kyoto@JPN,BR-BA,KOR");
-  for (const piece of raw.to.split(",")) {
-    const s = decodeValue(piece)?.trim();
-    if (s === undefined) return fail("to", `"${piece}" isn't percent-encoded correctly`);
-    if (s.includes(",") && !parseStop(s)) return fail("to", `${notAStop(s)} Don't percent-encode the commas between stops.`);
-    if (s) values.to.push(s);
-  }
-  if (values.to.length === 0) return fail("to", "has no places: list them, e.g. to=Kyoto@JPN,BR-BA,KOR");
-
-  const r = await resolveInvite(values, known, loadCities);
-  if (r.ok && r.value.stops.length === 0) return fail("to", `none of the places could be found: ${r.unknown.join(", ")}`);
-  return r;
+  if (!body.startsWith("i=")) return fail("i", "is missing: this isn't an invite link");
+  return decodePacked(body.slice(2), known, loadCities);
 }
 
 /**
@@ -232,8 +177,7 @@ async function decodePacked(payload: string, known: KnownCodes, loadCities: () =
   const broken = fail("i", "can't be read: the link was cut off or changed on the way");
   let raw: unknown;
   try {
-    // lz-string's alphabet has no '%', so one means a chat app percent-encoded the link ('$' → '%24').
-    const json = LZString.decompressFromEncodedURIComponent(payload.includes("%") ? decodeURIComponent(payload) : payload);
+    const json = LZString.decompressFromEncodedURIComponent(payload);
     raw = json ? JSON.parse(json) : undefined;
   } catch {
     return broken;

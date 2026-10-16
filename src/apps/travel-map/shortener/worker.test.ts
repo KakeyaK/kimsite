@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { encodeInvite, MAX_FROM, MAX_MESSAGE, MAX_STOPS } from "@apps/travel-map/lib/invite";
-import worker, { MAX_INVITE, rejectInvite, shorten, type Env, type Store } from "./worker";
+import worker, { MAX_INVITE, MAX_REDIRECT, rejectInvite, shorten, type Env, type Store } from "./worker";
 
 const SITE = "https://www.kakeya.kim";
 const invite = encodeInvite({ stops: ["JPN"], from: "Kim", message: "Let's go!" });
@@ -30,7 +30,7 @@ function noise(length: number): string {
 }
 
 describe("shortener", () => {
-  it("stores an invite, redirects to the invite page and hands the invite back", async () => {
+  it("stores an invite and redirects to it on the invite page", async () => {
     const e = env();
     const res = await post(e, { invite });
     expect(res.status).toBe(200);
@@ -41,11 +41,17 @@ describe("shortener", () => {
 
     const hop = await get(e, `/${code}`);
     expect(hop.status).toBe(302);
-    expect(hop.headers.get("Location")).toBe(`${SITE}/sandbox/travel-map/invite#s=${code}`);
+    expect(hop.headers.get("Location")).toBe(`${SITE}/sandbox/travel-map/invite#${invite}`);
+  });
 
-    const api = await get(e, `/api/${code}`);
-    expect(api.headers.get("Access-Control-Allow-Origin")).toBe(SITE);
-    expect(await api.json()).toEqual({ invite });
+  it("forwards an invite too long for a header with a page instead", async () => {
+    const e = env();
+    const long = encodeInvite({ stops: ["JPN"], message: noise(MAX_REDIRECT) });
+    const { url } = (await (await post(e, { invite: long })).json()) as { url: string };
+    const page = await get(e, new URL(url).pathname);
+    expect(page.status).toBe(200);
+    expect(page.headers.get("Location")).toBeNull();
+    expect(await page.text()).toContain(`location.replace("${SITE}/sandbox/travel-map/invite#${long}")`);
   });
 
   it("gives the same invite the same code, with one write", async () => {
@@ -89,7 +95,6 @@ describe("shortener", () => {
     expect((await post(e, { invite: "https://evil.example" })).status).toBe(400);
     expect((await worker.fetch(new Request("https://go.kakeya.kim/", { method: "POST", body: "{" }), e)).status).toBe(400);
     expect((await get(e, "/Zzzzzzz")).status).toBe(404);
-    expect((await get(e, "/api/Zzzzzzz")).status).toBe(404);
     expect((await get(e, "/../etc")).status).toBe(404);
     expect((await worker.fetch(new Request("https://go.kakeya.kim/x", { method: "DELETE" }), e)).status).toBe(405);
     expect((e.LINKS as ReturnType<typeof memoryStore>).writes).toBe(0);
@@ -99,7 +104,7 @@ describe("shortener", () => {
     const e = env();
     const pre = await worker.fetch(new Request("https://go.kakeya.kim/", { method: "OPTIONS" }), e);
     expect(pre.status).toBe(204);
-    expect(pre.headers.get("Access-Control-Allow-Methods")).toBe("GET, POST");
+    expect(pre.headers.get("Access-Control-Allow-Methods")).toBe("POST");
     expect((await get(e, "/")).headers.get("Location")).toBe(`${SITE}/`);
   });
 });
