@@ -9,13 +9,17 @@ characters in `lib/invite.ts`).
 
 - `POST /` with `{"invite": "i=…"}` (what `encodeInvite` makes) stores it and answers
   `{"url": "https://go.kakeya.kim/<code>"}`. Anything that isn't an invite is refused, and the Worker only ever
-  sends visitors to the invite page, so the domain can't front spam.
-- `GET /<code>` sends the browser to `https://www.kakeya.kim/sandbox/travel-map/invite#i=…`: a 302, or, for an
-  invite whose link is longer than `MAX_REDIRECT`, a tiny page that forwards it (Cloudflare caps header sizes).
+  sends visitors to an invite page on the site's own origins, so the domain can't front spam.
+- `GET /<code>` sends the browser to `<origin>/sandbox/travel-map/invite#i=…`: a 302, or, for an invite whose link is
+  longer than `MAX_REDIRECT`, a tiny page that forwards it (Cloudflare caps header sizes).
 
-The same invite always gets the same code. Invites are stored on Cloudflare, so anyone with a code can read its
-invite. Free-plan limits (check Cloudflare's pricing page): 100k opened invites and 1,000 new ones a day. On the dev
-server, which the shortener doesn't answer, the planner falls back to a full link.
+A short link opens on the site it was made on, taken from the request's `Origin`: the live site, a Cloudflare Pages
+preview (`<branch>.kimsite.pages.dev`) or the dev server (`localhost:4321`), so a link made on a preview tests that
+preview's code. The allowed origins are `ORIGINS` in `wrangler.toml`; `*` stands for one subdomain label. If the
+shortener can't be reached on the dev server, the planner shows the full link and says so.
+
+The same invite on the same site always gets the same code. Invites are stored on Cloudflare, so anyone with a code
+can read its invite. Free-plan limits (check Cloudflare's pricing page): 100k opened invites and 1,000 new ones a day.
 
 ## Setup (once)
 
@@ -47,5 +51,5 @@ npm run shortener:deploy
 ```
 
 `custom_domain = true` in `wrangler.toml` makes Cloudflare create the `go` DNS record and its certificate. Check with
-`curl -i https://go.kakeya.kim/` (a redirect to the site), then try "Create link" in the trip planner on the live site.
+`curl -i https://go.kakeya.kim/` (a redirect to the site), then try "Create link" in the trip planner on the live site or a preview.
 To use another name than `go`, change it in `wrangler.toml` and `lib/shortLink.ts`.

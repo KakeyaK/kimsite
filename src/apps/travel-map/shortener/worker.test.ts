@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { encodeInvite, MAX_FROM, MAX_MESSAGE, MAX_STOPS } from "@apps/travel-map/lib/invite";
-import worker, { MAX_INVITE, MAX_REDIRECT, rejectInvite, shorten, type Env, type Store } from "./worker";
+import worker, { isAllowedOrigin, MAX_INVITE, MAX_REDIRECT, rejectInvite, shorten, type Env, type Store } from "./worker";
 
 const SITE = "https://www.kakeya.kim";
 const invite = encodeInvite({ stops: ["JPN"], from: "Kim", message: "Let's go!" });
@@ -15,9 +15,14 @@ function memoryStore(): Store & { data: Map<string, string>; writes: number } {
   };
 }
 
-const env = (): Env => ({ LINKS: memoryStore(), SITE });
-const post = (e: Env, body: unknown) =>
-  worker.fetch(new Request("https://go.kakeya.kim/", { method: "POST", body: JSON.stringify(body) }), e);
+const ORIGINS = "https://www.kakeya.kim https://kimsite.pages.dev https://*.kimsite.pages.dev http://localhost:4321";
+const PREVIEW = "https://ccr-e1aa59f3-wy0ere.kimsite.pages.dev";
+const env = (): Env => ({ LINKS: memoryStore(), SITE, ORIGINS });
+const post = (e: Env, body: unknown, origin: string | null = SITE) =>
+  worker.fetch(
+    new Request("https://go.kakeya.kim/", { method: "POST", body: JSON.stringify(body), headers: origin ? { Origin: origin } : {} }),
+    e,
+  );
 const get = (e: Env, path: string) => worker.fetch(new Request(`https://go.kakeya.kim${path}`), e);
 
 /** Text lz-string can't compress: random CJK characters, the worst case for an invite's size. */
@@ -44,6 +49,39 @@ describe("shortener", () => {
     expect(hop.headers.get("Location")).toBe(`${SITE}/sandbox/travel-map/invite#${invite}`);
   });
 
+  it("sends a link made on a preview back to that preview", async () => {
+    const e = env();
+    const res = await post(e, { invite }, PREVIEW);
+    expect(res.headers.get("Access-Control-Allow-Origin")).toBe(PREVIEW);
+    const { url } = (await res.json()) as { url: string };
+    const hop = await get(e, new URL(url).pathname);
+    expect(hop.headers.get("Location")).toBe(`${PREVIEW}/sandbox/travel-map/invite#${invite}`);
+  });
+
+  it("gives the same invite a different code on each origin", async () => {
+    const e = env();
+    const codes = await Promise.all([SITE, PREVIEW].map(async (o) => ((await (await post(e, { invite }, o)).json()) as { url: string }).url));
+    expect(codes[0]).not.toBe(codes[1]);
+  });
+
+  it("only makes links for the site's own origins", async () => {
+    expect(isAllowedOrigin(SITE, ORIGINS)).toBe(true);
+    expect(isAllowedOrigin(PREVIEW, ORIGINS)).toBe(true);
+    expect(isAllowedOrigin("https://kimsite.pages.dev", ORIGINS)).toBe(true);
+    expect(isAllowedOrigin("http://localhost:4321", ORIGINS)).toBe(true);
+    expect(isAllowedOrigin("https://evil.example", ORIGINS)).toBe(false);
+    expect(isAllowedOrigin("https://evil.kimsite.pages.dev.example", ORIGINS)).toBe(false);
+    expect(isAllowedOrigin("https://a.b.kimsite.pages.dev", ORIGINS)).toBe(false);
+    expect(isAllowedOrigin("https://other.pages.dev", ORIGINS)).toBe(false);
+    expect(isAllowedOrigin("http://www.kakeya.kim", ORIGINS)).toBe(false);
+    expect(isAllowedOrigin(null, ORIGINS)).toBe(false);
+
+    const e = env();
+    expect((await post(e, { invite }, "https://evil.example")).status).toBe(403);
+    expect((await post(e, { invite }, null)).status).toBe(403);
+    expect((e.LINKS as ReturnType<typeof memoryStore>).writes).toBe(0);
+  });
+
   it("forwards an invite too long for a header with a page instead", async () => {
     const e = env();
     const long = encodeInvite({ stops: ["JPN"], message: noise(MAX_REDIRECT) });
@@ -56,15 +94,17 @@ describe("shortener", () => {
 
   it("gives the same invite the same code, with one write", async () => {
     const store = memoryStore();
-    expect(await shorten(store, invite)).toBe(await shorten(store, invite));
+    const link = `${SITE}/sandbox/travel-map/invite#${invite}`;
+    expect(await shorten(store, link)).toBe(await shorten(store, link));
     expect(store.writes).toBe(1);
   });
 
-  it("lengthens the code when it clashes with another invite", async () => {
+  it("lengthens the code when it clashes with another link", async () => {
     const store = memoryStore();
-    const code = (await shorten(store, invite))!;
-    store.data.set(code, `${invite}A`);
-    const longer = await shorten(store, invite);
+    const link = `${SITE}/sandbox/travel-map/invite#${invite}`;
+    const code = (await shorten(store, link))!;
+    store.data.set(code, `${link}A`);
+    const longer = await shorten(store, link);
     expect(longer).toHaveLength(8);
     expect(longer!.startsWith(code)).toBe(true);
   });
@@ -93,7 +133,7 @@ describe("shortener", () => {
   it("answers bad requests without storing anything", async () => {
     const e = env();
     expect((await post(e, { invite: "https://evil.example" })).status).toBe(400);
-    expect((await worker.fetch(new Request("https://go.kakeya.kim/", { method: "POST", body: "{" }), e)).status).toBe(400);
+    expect((await worker.fetch(new Request("https://go.kakeya.kim/", { method: "POST", body: "{", headers: { Origin: SITE } }), e)).status).toBe(400);
     expect((await get(e, "/Zzzzzzz")).status).toBe(404);
     expect((await get(e, "/../etc")).status).toBe(404);
     expect((await worker.fetch(new Request("https://go.kakeya.kim/x", { method: "DELETE" }), e)).status).toBe(405);

@@ -60,12 +60,15 @@ export function InviteBuilder({ stops, onStopsChange, onClose }: Props) {
     const current = encoded;
     setCreating(true);
     setStatus("");
-    let made = await shortenInvite(current);
-    // The shortener only answers the live site; on the dev server, fall back to the full link.
-    if (!made && import.meta.env.DEV) made = inviteUrl(window.location.origin, invite);
+    const short = await shortenInvite(current);
     setCreating(false);
-    if (made) setLink({ invite: current, url: made });
-    else setStatus("Couldn't create the link. Check your connection and try again.");
+    if (short) return setLink({ invite: current, url: short });
+    // On the dev server, keep testing with the full link (the shortener may not be deployed, or be offline).
+    if (import.meta.env.DEV) {
+      setLink({ invite: current, url: inviteUrl(window.location.origin, invite) });
+      return setStatus("Couldn't reach the shortener, so this is the full link (dev server only).");
+    }
+    setStatus("Couldn't create the link. Check your connection and try again.");
   }
 
   function openSource() {
