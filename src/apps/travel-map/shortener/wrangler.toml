@@ -7,10 +7,8 @@ routes = [{ pattern = "go.kakeya.kim", custom_domain = true }]
 
 [vars]
 SITE = "https://www.kakeya.kim"
-# Who may make short links: the live site, the Cloudflare Pages project and its previews, the dev server.
 ORIGINS = "https://www.kakeya.kim https://kimsite.pages.dev https://*.kimsite.pages.dev http://localhost:4321"
 
-# Created once with `npx wrangler kv namespace create LINKS`, which prints the id to paste here.
 [[kv_namespaces]]
 binding = "LINKS"
-id = "REPLACE_WITH_KV_NAMESPACE_ID"
+id = "83b6652a74fc426bb00aed6fe08ad197"

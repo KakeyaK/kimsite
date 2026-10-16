@@ -21,28 +21,7 @@ shortener can't be reached on the dev server, the planner shows the full link an
 The same invite on the same site always gets the same code. Invites are stored on Cloudflare, so anyone with a code
 can read its invite. Free-plan limits (check Cloudflare's pricing page): 100k opened invites and 1,000 new ones a day.
 
-## Setup (once)
-
-### 1. Move the domain's DNS to Cloudflare
-
-The domain stays registered (and paid for) at Porkbun; only its DNS moves. A Worker can serve `go.kakeya.kim` only if
-Cloudflare runs the DNS for `kakeya.kim`.
-
-1. Make a free Cloudflare account, then **Connect a domain** → `kakeya.kim` → Free plan (not "Transfer": that would move the registration away from Porkbun).
-2. Cloudflare copies the existing records. Before going on, compare them with Porkbun's DNS page (Domain Management →
-   DNS) and add anything missing. The site needs:
-   - `CNAME www → kakeyak.github.io`
-   - for the bare `kakeya.kim`, GitHub Pages' `A` records (185.199.108.153 to 185.199.111.153) or an `ALIAS`,
-     whatever Porkbun has today
-   - any `MX`/`TXT` records (email forwarding, domain verifications)
-
-   Set the GitHub Pages records to **DNS only** (grey cloud), so GitHub keeps renewing the site's HTTPS certificate.
-3. At Porkbun: if DNSSEC is on, turn it off first. Then, in the domain's **Authoritative Nameservers**, replace
-   Porkbun's with the two Cloudflare shows you.
-4. Wait for Cloudflare's "your domain is active" email (minutes to a few hours). The site keeps working throughout.
-   You can turn DNSSEC back on from Cloudflare afterwards.
-
-### 2. Deploy the Worker
+## Deploy the Worker
 
 ```sh
 npx wrangler@4 login
