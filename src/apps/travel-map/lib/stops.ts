@@ -16,6 +16,12 @@ export const stopSchema = z.union([iso3Schema, regionCodeSchema, cityStopSchema]
 export type CityStop = z.infer<typeof cityStopSchema>;
 export type Stop = z.infer<typeof stopSchema>;
 
+/** How a trip gets from one stop to the next. A leg without one is drawn as a plane. */
+export const MODES = ["plane", "train", "bus", "boat"] as const;
+export const modeSchema = z.enum(MODES);
+export type Mode = z.infer<typeof modeSchema>;
+export const MODE_EMOJI: Record<Mode, string> = { plane: "✈️", train: "🚆", bus: "🚌", boat: "⛴️" };
+
 export const isCityStop = (s: Stop): s is CityStop => typeof s === "object";
 /** A state stop ("BR-BA"); country codes never contain a dash. */
 export const isRegionStop = (s: Stop): s is string => typeof s === "string" && s.includes("-");

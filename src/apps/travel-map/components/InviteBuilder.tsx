@@ -5,13 +5,19 @@ import { inviteDoc, parseInviteDoc } from "@apps/travel-map/lib/inviteDoc";
 import { KNOWN_CODES } from "@apps/travel-map/lib/meta";
 import { placeToStop } from "@apps/travel-map/lib/places";
 import { shortenInvite } from "@apps/travel-map/lib/shortLink";
-import { stopKey, stopList, stopName, type Stop } from "@apps/travel-map/lib/stops";
+import { MODE_EMOJI, MODES, stopKey, stopList, stopName, type Mode, type Stop } from "@apps/travel-map/lib/stops";
 import { cn } from "@lib/utils";
 import { PlaceSearch } from "./PlaceSearch";
 import { imageStats, MAX_MD_IMAGES } from "./markdown";
-import { Postcard } from "./Postcard";
+import { hasPostcard, Postcard } from "./Postcard";
 import { shareOrCopy } from "./share";
 import { btn, btnActive, card, input } from "./ui";
+
+/**
+ * A leg's mode is kept by the two stops it joins, so it follows them when stops are moved, and a leg
+ * that no longer exists (a stop removed, or moved away) is simply not used.
+ */
+const legKey = (a: Stop, b: Stop) => `${stopKey(a)} > ${stopKey(b)}`;
 
 interface Props {
   /** Controlled so the page's single "Plan a trip" button can add the selected place. */
@@ -26,6 +32,7 @@ export function InviteBuilder({ stops, onStopsChange, onClose }: Props) {
   const [date, setDate] = useState("");
   const [end, setEnd] = useState("");
   const [email, setEmail] = useState("");
+  const [modes, setModes] = useState<Record<string, Mode>>({});
   const [status, setStatus] = useState("");
   /** The short link made for `invite`; it stops applying as soon as the invite changes. */
   const [link, setLink] = useState<{ invite: string; url: string } | null>(null);
@@ -43,13 +50,15 @@ export function InviteBuilder({ stops, onStopsChange, onClose }: Props) {
   /** What the form holds, stops or not; it's an invite once it has a stop. */
   const draft = useMemo<Invite>(() => {
     const inv: Invite = { stops };
+    const legs = stops.slice(1).map((s, i) => modes[legKey(stops[i], s)] ?? null);
+    if (legs.some(Boolean)) inv.legs = legs;
     if (from.trim()) inv.from = from.trim().slice(0, MAX_FROM);
     if (message.trim()) inv.message = message.trim();
     if (date) inv.date = date;
     if (date && end >= date) inv.end = end;
     if (emailOk) inv.email = email.trim();
     return inv;
-  }, [stops, from, message, date, end, email]);
+  }, [stops, modes, from, message, date, end, email]);
   const invite = stops.length ? draft : null;
   const encoded = invite ? encodeInvite(invite) : "";
   /** The link to share, once made for the invite as it is now. Visitors only ever see short links. */
@@ -82,6 +91,8 @@ export function InviteBuilder({ stops, onStopsChange, onClose }: Props) {
     const r = await parseInviteDoc(source, KNOWN_CODES, loadCities);
     if (!r.ok) return setSourceError(r.error);
     onStopsChange(r.value.stops);
+    const { stops: read, legs = [] } = r.value;
+    setModes(Object.fromEntries(legs.flatMap((m, i) => (m ? [[legKey(read[i], read[i + 1]), m]] : []))));
     setFrom(r.value.from ?? "");
     setEmail(r.value.email ?? "");
     setDate(r.value.date ?? "");
@@ -134,7 +145,8 @@ export function InviteBuilder({ stops, onStopsChange, onClose }: Props) {
           />
           <p class="text-xs">
             The whole invite as text: the fields between the <code>---</code> lines, then the message in Markdown. A place is a
-            country code (<code>JPN</code>), a state code (<code>BR-BA</code>) or a city written <code>Kyoto@JPN</code>. Edit it,
+            country code (<code>JPN</code>), a state code (<code>BR-BA</code>) or a city written <code>Kyoto@JPN</code>, and may
+            end with how you get there from the place before (<code>KOR by train</code>: {MODES.join(", ")}). Edit it,
             or paste one written elsewhere, then go back to the form.
           </p>
           {sourceError && (
@@ -158,6 +170,25 @@ export function InviteBuilder({ stops, onStopsChange, onClose }: Props) {
               return (
                 <li key={stopKey(stop)} class="flex items-center gap-2">
                   <span class="flex-1 text-black dark:text-white">{i + 1}. {name}</span>
+                  {i > 0 && (
+                    <select
+                      class={cn(btn, "bg-transparent dark:[color-scheme:dark]")}
+                      aria-label={`How you get to ${name}`}
+                      title={`How you get to ${name} (optional)`}
+                      value={modes[legKey(stops[i - 1], stop)] ?? ""}
+                      onChange={(e) => {
+                        const key = legKey(stops[i - 1], stop);
+                        const next = { ...modes };
+                        const mode = (e.currentTarget as HTMLSelectElement).value as Mode | "";
+                        if (mode) next[key] = mode;
+                        else delete next[key];
+                        setModes(next);
+                      }}
+                    >
+                      <option value="">Getting there…</option>
+                      {MODES.map((m) => <option key={m} value={m}>{MODE_EMOJI[m]} {m[0].toUpperCase() + m.slice(1)}</option>)}
+                    </select>
+                  )}
                   <button type="button" class={btn} disabled={i === 0} onClick={() => move(i, -1)} aria-label={`Move ${name} earlier`}>↑</button>
                   <button type="button" class={btn} disabled={i === stops.length - 1} onClick={() => move(i, 1)} aria-label={`Move ${name} later`}>↓</button>
                   <button type="button" class={btn} onClick={() => onStopsChange(stops.filter((_, j) => j !== i))} aria-label={`Remove ${name}`}>✕</button>
@@ -220,7 +251,7 @@ export function InviteBuilder({ stops, onStopsChange, onClose }: Props) {
             )}
           </label>
 
-          {invite && (invite.message || invite.date) && (
+          {invite && hasPostcard(invite) && (
             <div class="space-y-1">
               <p class="text-xs uppercase tracking-wide">Preview</p>
               <Postcard invite={invite} editing />

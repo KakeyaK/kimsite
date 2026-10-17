@@ -157,5 +157,17 @@ function MarkdownImage({ src, alt, editing }: { src: string; alt: string; editin
       </span>
     );
   }
-  return <img src={src} alt={alt} loading="lazy" referrerpolicy="no-referrer" onError={() => setFailed(true)} />;
+  const img = <img src={src} alt={alt} loading="lazy" referrerpolicy="no-referrer" onError={() => setFailed(true)} />;
+  const caption = alt.trim();
+  if (!caption) return img;
+  // Images sit inside a <p>, where <figure> isn't allowed, so the caption is built from spans.
+  // Screen readers already get the text from alt, so the visible caption is hidden from them.
+  return (
+    <span class="block">
+      {img}
+      <span aria-hidden="true" class="not-prose mt-1 block text-center font-sans text-xs italic opacity-70">
+        {caption}
+      </span>
+    </span>
+  );
 }

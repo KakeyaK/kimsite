@@ -11,7 +11,7 @@ import type { FeatureCollection } from "geojson";
 import type { ISO3 } from "./data";
 import type { ColorKey } from "./stats";
 import { alongLine, greatCircle, type LonLat } from "./geo";
-import { isCityStop, isRegionStop, stopCenter, type CityStop, type Stop } from "./stops";
+import { isCityStop, isRegionStop, MODE_EMOJI, MODES, stopCenter, type CityStop, type Mode, type Stop } from "./stops";
 import { COUNTRIES, REGIONS, countryByIso, regionByCode, regionsOf } from "./meta";
 import { OVERLAP_KEYS } from "./overlap";
 
@@ -79,27 +79,25 @@ export type PlaceRef = { kind: "country" | "region"; code: string };
 const ICON_RATIO = 2; // drawn at 2x for sharp edges on retina screens
 const sleep = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
 
-/** Material Design "flight" icon (Apache 2.0), a 24×24 path pointing north. */
-const PLANE_PATH =
-  "M21 16v-2l-8-5V3.5c0-.83-.67-1.5-1.5-1.5S10 2.67 10 3.5V9l-8 5v2l8-2.5V19l-2 1.5V22l3.5-1 3.5 1v-1.5L13 19v-5.5l8 2.5z";
-const PLANE_SIZE = 34;
+const VEHICLE_SIZE = 34;
+const EMOJI_FONT = '"Apple Color Emoji", "Segoe UI Emoji", "Noto Color Emoji", sans-serif';
+const vehicleIcon = (mode: Mode) => `vehicle-${mode}`;
+/** The ✈️ emoji points north-east: turned this much less than the line's bearing, it points along it. */
+const PLANE_EMOJI_BEARING = 45;
 
-/** The plane that flies along the travel lines during the intro, in the trip colour with a land-coloured edge. */
-function planeImage(): ImageData {
-  const r = ICON_RATIO;
+/** What travels along the travel lines during the intro: the mode's emoji, with a soft land-coloured halo. */
+function vehicleImage(mode: Mode): ImageData {
+  const size = VEHICLE_SIZE * ICON_RATIO;
   const canvas = document.createElement("canvas");
-  canvas.width = canvas.height = PLANE_SIZE * r;
+  canvas.width = canvas.height = size;
   const g = canvas.getContext("2d")!;
-  g.scale((PLANE_SIZE * r) / 26, (PLANE_SIZE * r) / 26);
-  g.translate(1, 1); // room for the outline
-  const path = new Path2D(PLANE_PATH);
-  g.lineJoin = "round";
-  g.lineWidth = 2;
-  g.strokeStyle = token("land");
-  g.stroke(path);
-  g.fillStyle = token("stop");
-  g.fill(path);
-  return g.getImageData(0, 0, canvas.width, canvas.height);
+  g.font = `${Math.round(size * 0.7)}px ${EMOJI_FONT}`;
+  g.textAlign = "center";
+  g.textBaseline = "middle";
+  g.shadowColor = token("land");
+  g.shadowBlur = 3 * ICON_RATIO;
+  g.fillText(MODE_EMOJI[mode], size / 2, size / 2);
+  return g.getImageData(0, 0, size, size);
 }
 
 export class MapView {
@@ -130,7 +128,7 @@ export class MapView {
         labels: { type: "geojson", data: LABELS },
         cities: { type: "geojson", data: EMPTY, attribution: "GeoNames" },
         arcs: { type: "geojson", data: EMPTY },
-        plane: { type: "geojson", data: EMPTY },
+        vehicle: { type: "geojson", data: EMPTY },
       },
       layers: [
         { id: "background", type: "background", paint: { "background-color": token("ocean") } },
@@ -209,9 +207,9 @@ export class MapView {
           },
         },
         {
-          id: "plane", type: "symbol", source: "plane",
+          id: "vehicle", type: "symbol", source: "vehicle",
           layout: {
-            "icon-image": "plane",
+            "icon-image": ["get", "icon"],
             "icon-rotate": ["get", "bearing"],
             "icon-rotation-alignment": "map",
             "icon-allow-overlap": true,
@@ -239,9 +237,10 @@ export class MapView {
       this.map.touchZoomRotate.disableRotation();
       this.map.addControl(new maplibregl.NavigationControl({ showCompass: false }), "bottom-right"); // top-right holds the search
     }
-    // The plane icon is added lazily, the first time its layer asks for it.
+    // Vehicle icons are added lazily, the first time their layer asks for one.
     this.map.on("styleimagemissing", ({ id }) => {
-      if (id === "plane" && !this.map.hasImage(id)) this.map.addImage(id, planeImage(), { pixelRatio: ICON_RATIO });
+      const mode = MODES.find((m) => vehicleIcon(m) === id);
+      if (mode && !this.map.hasImage(id)) this.map.addImage(id, vehicleImage(mode), { pixelRatio: ICON_RATIO });
     });
     this.ready = new Promise((resolve) => this.map.once("load", () => resolve()));
     this.themeObserver = new MutationObserver(() => this.applyTheme());
@@ -275,7 +274,9 @@ export class MapView {
     this.map.setPaintProperty("arcs", "line-color", token("stop"));
     this.map.setPaintProperty("arcs-halo", "line-color", token("land"));
     this.map.setPaintProperty("cities", "circle-color", token("stop"));
-    if (this.map.hasImage("plane")) this.map.updateImage("plane", planeImage());
+    for (const mode of MODES) {
+      if (this.map.hasImage(vehicleIcon(mode))) this.map.updateImage(vehicleIcon(mode), vehicleImage(mode));
+    }
   }
 
   setCountryColors(colors: Record<ISO3, ColorKey>): Promise<void> {
@@ -340,22 +341,25 @@ export class MapView {
   /**
    * Slow spin on the globe, then fly to each stop in turn, pausing at each one.
    * `onStop(i)` fires as the camera heads to stop i. Resolves once the camera settles on the last stop.
+   * `legs[i]` is how the leg from stop i to the next is travelled: what moves along it (a plane when not given).
    */
   async globeIntro(
     stops: Stop[],
-    { spinMs = 1800, pauseMs = 800, onStop }: { spinMs?: number; pauseMs?: number; onStop?: (i: number) => void } = {},
+    { legs = [], spinMs = 1800, pauseMs = 800, onStop }: { legs?: (Mode | null)[]; spinMs?: number; pauseMs?: number; onStop?: (i: number) => void } = {},
   ): Promise<void> {
     await this.ready;
     if (!reducedMotion() && !this.introSkipped) await this.spin(spinMs);
     for (let i = 0; i < stops.length && !this.destroyed && !this.introSkipped; i++) {
       onStop?.(i);
       const duration = i === 0 ? 2500 : 2000;
-      // From the second stop on, a plane flies the leg while the camera follows.
-      const leg = i > 0 && !reducedMotion() ? this.flyPlane(greatCircle(stopCenter(stops[i - 1]), stopCenter(stops[i])), duration) : null;
+      // From the second stop on, a plane (or train, bus, boat) travels the leg while the camera follows.
+      const leg = i > 0 && !reducedMotion()
+        ? this.moveVehicle(legs[i - 1] ?? "plane", greatCircle(stopCenter(stops[i - 1]), stopCenter(stops[i])), duration)
+        : null;
       await Promise.all([this.flyAndSettle(stops[i], duration), leg]);
       if (i < stops.length - 1 && !reducedMotion() && !this.introSkipped) await sleep(pauseMs);
     }
-    if (!this.destroyed) this.setPlane(null);
+    if (!this.destroyed) this.setVehicle(null);
   }
 
   /** Cut the intro short: `globeIntro` resolves at once, with the camera on the last stop, where the tour ends. */
@@ -363,19 +367,19 @@ export class MapView {
     this.introSkipped = true;
     this.cancelSpin?.();
     this.map.stop();
-    if (this.map.getSource("plane")) this.setPlane(null);
+    if (this.map.getSource("vehicle")) this.setVehicle(null);
     if (stops.length) this.flyToStop(stops[stops.length - 1], { duration: 0 });
   }
 
-  /** Move the plane along `line` over `ms`, eased like the camera. It stays at the end until the next leg. */
-  private flyPlane(line: LonLat[], ms: number): Promise<void> {
+  /** Move the vehicle along `line` over `ms`, eased like the camera. It stays at the end until the next leg. */
+  private moveVehicle(mode: Mode, line: LonLat[], ms: number): Promise<void> {
     return new Promise((resolve) => {
       const start = performance.now();
       const ease = (t: number) => (t < 0.5 ? 2 * t * t : 1 - (-2 * t + 2) ** 2 / 2);
       const step = (now: number) => {
         if (this.destroyed || this.introSkipped) return resolve();
         const f = Math.min(1, (now - start) / ms);
-        this.setPlane(alongLine(line, ease(f)));
+        this.setVehicle({ mode, ...alongLine(line, ease(f)) });
         if (f < 1) requestAnimationFrame(step);
         else resolve();
       };
@@ -383,11 +387,11 @@ export class MapView {
     });
   }
 
-  private setPlane(at: { point: LonLat; bearing: number } | null): void {
-    (this.map.getSource("plane") as GeoJSONSource).setData(
-      at
-        ? { type: "Feature", properties: { bearing: at.bearing }, geometry: { type: "Point", coordinates: at.point } }
-        : EMPTY,
+  private setVehicle(at: { mode: Mode; point: LonLat; bearing: number } | null): void {
+    // Only the plane turns with the line; the other emojis are side or front views, which would tip over if turned.
+    const properties = at && { icon: vehicleIcon(at.mode), bearing: at.mode === "plane" ? at.bearing - PLANE_EMOJI_BEARING : 0 };
+    (this.map.getSource("vehicle") as GeoJSONSource).setData(
+      at ? { type: "Feature", properties, geometry: { type: "Point", coordinates: at.point } } : EMPTY,
     );
   }
 

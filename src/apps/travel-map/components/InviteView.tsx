@@ -54,7 +54,7 @@ export function InviteView({ invite, unknown }: { invite: Invite; unknown: strin
     if (reducedMotion()) return view.skipIntro(invite.stops); // no tour: jump to where it would end
     // Tour every stop in order, then bring up the postcard (unless Skip already did).
     view
-      .globeIntro(invite.stops, { onStop: (i) => !cancelled && setStop(i) })
+      .globeIntro(invite.stops, { legs: invite.legs, onStop: (i) => !cancelled && setStop(i) })
       .then(() => !cancelled && setPhase((p) => (p === "intro" ? "focus" : p)));
     return () => { cancelled = true; };
   }, [view]);

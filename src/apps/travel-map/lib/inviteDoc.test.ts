@@ -30,6 +30,7 @@ describe("invite documents", () => {
     const invites: Invite[] = [
       { stops: [kyoto, mianzhu, "KOR"], from: "Kîm: 金", email: "kim@example.com", date: "2027-04-01", end: "2027-04-10", message: "Vamos! 🇯🇵\n\n---\n\nto: nowhere" },
       { stops: ["JPN"] },
+      { stops: [kyoto, mianzhu, "KOR"], legs: [null, "boat"] },
       { stops: [], message: "Somewhere warm?" },
     ];
     for (const invite of invites) expect(await parse(inviteDoc(invite))).toEqual({ ok: true, value: invite, unknown: [] });
@@ -44,6 +45,12 @@ describe("invite documents", () => {
     expect(await parse(text)).toEqual({ ok: true, unknown: [], value: { stops: [kyoto, "KOR"], from: "Kim", date: "2027-03-28", message: "Hi" } });
   });
 
+  it("reads how each leg is travelled, on its own line or all on one", async () => {
+    const value = { stops: ["JPN", kyoto, "KOR"], legs: ["train", "boat"] };
+    expect(await parse(doc("to:\n  - JPN\n  - Kyoto@JPN by train\n  - KOR by boat"))).toEqual({ ok: true, unknown: [], value });
+    expect(await parse(doc("to: JPN, Kyoto@JPN by train, KOR by Boat"))).toEqual({ ok: true, unknown: [], value });
+  });
+
   it("skips places it can't find, and takes an invite without any", async () => {
     expect(await parse(doc("to: JPN, ZZZ, Atlantis@JPN"))).toEqual({ ok: true, value: { stops: ["JPN"] }, unknown: ["ZZZ", "Atlantis@JPN"] });
     expect(await parse(doc("to:\nfrom: Kim"))).toEqual({ ok: true, value: { stops: [], from: "Kim" }, unknown: [] });
@@ -53,6 +60,7 @@ describe("invite documents", () => {
     ["to: JPN", "---"],
     ["---\nto: JPN", "---"],
     [doc("to: Kyoto, Japan"), "to"],
+    [doc("to: JPN by train, KOR"), "to"],
     [doc(`to: ${Array(MAX_STOPS + 1).fill("JPN").join(", ")}`), "to"],
     [doc("to: JPN\ntitle: Trip"), "title"],
     [doc("to: JPN\nmessage: Hi"), "message"],

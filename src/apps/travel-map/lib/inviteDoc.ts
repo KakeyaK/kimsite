@@ -1,7 +1,6 @@
 import type { KnownCodes } from "./data";
 import type { CityRow } from "./cities";
-import { resolveInvite, type DecodeResult, type Invite, type RawInvite } from "./invite";
-import { isCityStop } from "./stops";
+import { resolveInvite, writeStops, type DecodeResult, type Invite, type RawInvite } from "./invite";
 
 /*
  * An invite as a text document, for writing by hand (or by a language model) and pasting into the trip
@@ -10,7 +9,7 @@ import { isCityStop } from "./stops";
  *   ---
  *   to:
  *     - Kyoto@JPN
- *     - KOR
+ *     - KOR by plane
  *   from: Kim
  *   email:
  *   date: 2027-03-28
@@ -30,7 +29,7 @@ export function inviteDoc(i: Invite): string {
   return [
     "---",
     "to:",
-    ...i.stops.map((s) => `  - ${isCityStop(s) ? `${s.n}@${s.c}` : s}`),
+    ...writeStops(i).map((s) => `  - ${s}`),
     field("from", i.from),
     field("email", i.email),
     field("date", i.date),

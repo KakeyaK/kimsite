@@ -45,6 +45,20 @@ describe("invite links", () => {
     expect(await roundTrip({ ...base, message })).toMatchObject({ ok: true, value: { message } });
   });
 
+  it("round-trips how each leg is travelled", async () => {
+    const inv: Invite = { stops: [kyoto, "KOR", "BR-BA", "JPN"], legs: ["boat", null, "plane"] };
+    expect(await roundTrip(inv)).toEqual({ ok: true, value: inv, unknown: [] });
+  });
+
+  it("read a leg's mode written after the place, in any case", async () => {
+    const r = await decode(link({ to: ["JPN", "kyoto@jpn  BY Train", "KOR by bus"] }));
+    expect(r).toEqual({ ok: true, unknown: [], value: { stops: ["JPN", kyoto, "KOR"], legs: ["train", "bus"] } });
+  });
+
+  it("leave legs out when none has a mode", async () => {
+    expect(await roundTrip({ stops: ["JPN", "KOR"], legs: [null] })).toEqual({ ok: true, value: { stops: ["JPN", "KOR"] }, unknown: [] });
+  });
+
   it("round-trips a city with a comma in its name", async () => {
     const mianzhu = { n: "Mianzhu, Deyang, Sichuan", c: "CHN", la: 31.34, lo: 104.22 };
     expect(await roundTrip({ stops: [mianzhu, "JPN"] })).toEqual({ ok: true, value: { stops: [mianzhu, "JPN"] }, unknown: [] });
@@ -89,6 +103,11 @@ describe("skipped places", () => {
     expect(r).toEqual({ ok: true, value: { stops: ["JPN"] }, unknown: ["ZZZ", "BR-XX", "Atlantis@JPN", "Kyoto@YYY"] });
   });
 
+  it("drop a skipped place's leg, keeping the next one's", async () => {
+    const r = await decode(link({ to: ["JPN", "ZZZ by bus", "KOR by boat", "Atlantis@JPN by train"] }));
+    expect(r).toEqual({ ok: true, value: { stops: ["JPN", "KOR"], legs: ["boat"] }, unknown: ["ZZZ", "Atlantis@JPN"] });
+  });
+
   it("skips the cities when the city list fails to load", async () => {
     const r = await decodeInvite(link({ to: ["JPN", "Kyoto@JPN"] }), known, () => Promise.reject(new Error("offline")));
     expect(r).toEqual({ ok: true, value: { stops: ["JPN"] }, unknown: ["Kyoto@JPN"] });
@@ -105,6 +124,8 @@ describe("broken links name the field", () => {
     [`#${encodeInvite({ stops: ["ZZZ"] })}`, "to"],
     [link({}), "to"],
     [link({ to: ["Kyoto"] }), "to"],
+    [link({ to: ["JPN by plane", "KOR"] }), "to"],
+    [link({ to: ["JPN", "KOR by car"] }), "to"],
     [link({ to: Array(MAX_STOPS + 1).fill("JPN") }), "to"],
     [link({ to: ["ZZZ", "Atlantis@JPN"] }), "to"],
     [link({ to: ["JPN"], from: "x".repeat(81) }), "from"],

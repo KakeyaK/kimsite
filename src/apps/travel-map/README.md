@@ -36,7 +36,9 @@ in `scripts/extra-cities.mjs` (Venice, Hallstatt, Oia…). To add one, find its 
 ## Invites
 
 An invite is a link: `/sandbox/travel-map/invite#i=…`, its fields compressed with lz-string (see `lib/invite.ts`).
-A city stop is written `Name@ISO3` and looked up in `public/map/cities.json`, so decoding is asynchronous. When a
+A city stop is written `Name@ISO3` and looked up in `public/map/cities.json`, so decoding is asynchronous. A stop
+may end with how you get there from the one before (`Kyoto@JPN by train`: plane, train, bus or boat), which picks
+what travels that leg in the intro (a plane when not said). When a
 link is broken, the invite page names the field that's wrong. Shared maps (`#m=…` on `/shared`) are compressed the
 same way (`lib/sharedMap.ts`).
 

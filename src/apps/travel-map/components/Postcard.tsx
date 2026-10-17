@@ -13,8 +13,14 @@ function countdown(date: string): string | null {
   return `This trip was ${-n} day${n === -1 ? "" : "s"} ago`;
 }
 
+/** Whether the invite has anything for the card to show: a date, a message or who it's from. */
+export function hasPostcard(invite: Invite): boolean {
+  return Boolean((invite.date && countdown(invite.date)) || invite.message?.trim() || invite.from?.trim());
+}
+
 /** `editing`: shown as a preview in the trip planner, so broken images get a how-to-fix hint. */
 export function Postcard({ invite, editing = false }: { invite: Invite; editing?: boolean }) {
+  if (!hasPostcard(invite)) return null;
   const when = invite.date ? countdown(invite.date) : null;
 
   // <article> picks up the site's prose styles (global.css), which style the Markdown.
@@ -25,8 +31,8 @@ export function Postcard({ invite, editing = false }: { invite: Invite; editing?
           🗓 {invite.date}{invite.end && invite.end !== invite.date ? ` → ${invite.end}` : ""} · {when}
         </p>
       )}
-      {invite.message && <div>{renderMarkdown(invite.message, { editing })}</div>}
-      {invite.from && <p class="not-prose text-right text-sm">— {invite.from}</p>}
+      {invite.message?.trim() && <div>{renderMarkdown(invite.message, { editing })}</div>}
+      {invite.from?.trim() && <p class="not-prose text-right text-sm">— {invite.from}</p>}
     </article>
   );
 }

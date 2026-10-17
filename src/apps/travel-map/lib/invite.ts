@@ -3,7 +3,7 @@ import { z } from "astro/zod";
 import type { KnownCodes } from "./data";
 import type { CityRow } from "./cities";
 import { fold } from "./search";
-import { isCityStop, isKnownStop, stopSchema, type Stop } from "./stops";
+import { isCityStop, isKnownStop, modeSchema, MODES, stopSchema, type Mode, type Stop } from "./stops";
 
 export const MAX_STOPS = 10;
 /**
@@ -24,6 +24,8 @@ export const inviteSchema = z
     /** The inviter's email, so the friend's calendar event can invite them back. */
     email: emailSchema.optional(),
     stops: z.array(stopSchema).min(1).max(MAX_STOPS),
+    /** How each leg is travelled: `legs[i]` goes from stop i to stop i + 1 (null: not said). Left out when none is. */
+    legs: z.array(modeSchema.nullable()).optional(),
     message: z.string().max(MAX_MESSAGE).optional(),
     /** Trip start (YYYY-MM-DD); `end` is the last day, and needs a start. */
     date: dateSchema.optional(),
@@ -38,7 +40,8 @@ export type Invite = z.infer<typeof inviteSchema>;
  * shared map's #m=…). Nobody shares it: the trip planner stores the invite with the shortener and shares the short
  * link (lib/shortLink.ts), which forwards here. What people (and language models) write by hand is the invite
  * document, which has the same fields (lib/inviteDoc.ts). A stop is a country code (JPN), a state code (BR-BA) or a
- * city, Name@ISO3, looked up by name in the city list.
+ * city, Name@ISO3, looked up by name in the city list. It may end with how you get there from the stop before:
+ * "Kyoto@JPN by train".
  */
 export type InviteField = "to" | "from" | "email" | "date" | "end" | "msg";
 
@@ -49,13 +52,22 @@ export type DecodeResult = { ok: true; value: Invite; unknown: string[] } | { ok
 /** An invite's fields as written (in a link or a document), trimmed, before anything is checked. */
 export type RawInvite = { to: string[] } & Partial<Record<Exclude<InviteField, "to">, string>>;
 
-/** A stop as written, before cities are looked up. */
-type StopSpec = { code: string } | { city: string; iso: string };
+/** A stop as written, before cities are looked up, with how you get there. */
+type StopSpec = ({ code: string } | { city: string; iso: string }) & { by?: Mode };
 
 const COUNTRY_RE = /^[A-Z]{3}$/;
 const REGION_RE = /^[A-Z]{2}-[A-Z0-9]{1,3}$/;
 
-function parseStop(s: string): StopSpec | null {
+const BY_RE = new RegExp(`\\s+by\\s+(${MODES.join("|")})$`, "i");
+
+function parseStop(written: string): StopSpec | null {
+  const by = BY_RE.exec(written);
+  const s = by ? written.slice(0, by.index).trim() : written;
+  const spec = parsePlace(s);
+  return spec && by ? { ...spec, by: by[1].toLowerCase() as Mode } : spec;
+}
+
+function parsePlace(s: string): StopSpec | null {
   const at = s.lastIndexOf("@");
   if (at === -1) {
     const code = s.toUpperCase();
@@ -89,7 +101,8 @@ export function findCity(rows: CityRow[], name: string, iso: string): CityRow | 
 }
 
 const fail = (field: string, message: string): DecodeResult => ({ ok: false, error: { field, message } });
-const notAStop = (s: string) => `"${s}" isn't a stop. Write a country code (JPN), a state code (BR-BA) or a city as Name@ISO3 (Kyoto@JPN).`;
+const notAStop = (s: string) =>
+  `"${s}" isn't a stop. Write a country code (JPN), a state code (BR-BA) or a city as Name@ISO3 (Kyoto@JPN), then optionally how you get there: ${MODES.map((m) => `by ${m}`).join(", ")}.`;
 
 /**
  * Read an invite from a link's hash (`#i=…`). Cities are looked up in `loadCities()`, which is only called when the
@@ -112,6 +125,7 @@ export async function resolveInvite(values: RawInvite, known: KnownCodes, loadCi
   for (const s of values.to) {
     const spec = parseStop(s);
     if (!spec) return fail("to", notAStop(s));
+    if (spec.by && !specs.length) return fail("to", `"${s}" is the first place, so there's no getting there "by ${spec.by}": that's said on the place you travel to`);
     specs.push(spec);
   }
   if (specs.length > MAX_STOPS) return fail("to", `has ${specs.length} places; the most is ${MAX_STOPS}`);
@@ -149,18 +163,26 @@ export async function resolveInvite(values: RawInvite, known: KnownCodes, loadCi
     }
   }
   const stops: Stop[] = [];
+  /** How each found stop is reached; a place that's skipped takes its leg with it. */
+  const arrivals: (Mode | null)[] = [];
   const unknown: string[] = [];
   for (const spec of specs) {
+    let stop: Stop | null = null;
     if ("code" in spec) {
-      if (isKnownStop(spec.code, known)) stops.push(spec.code);
+      if (isKnownStop(spec.code, known)) stop = spec.code;
       else unknown.push(spec.code);
     } else {
       const row = known.countries.has(spec.iso) ? findCity(rows, spec.city, spec.iso) : null;
-      if (row) stops.push({ n: row[0], c: row[1], la: row[2], lo: row[3] });
+      if (row) stop = { n: row[0], c: row[1], la: row[2], lo: row[3] };
       else unknown.push(`${spec.city}@${spec.iso}`);
     }
+    if (stop) {
+      stops.push(stop);
+      arrivals.push(spec.by ?? null);
+    }
   }
-  return { ok: true, value: { ...invite, stops }, unknown };
+  const legs = arrivals.slice(1);
+  return { ok: true, value: { ...invite, stops, ...(legs.some(Boolean) && { legs }) }, unknown };
 }
 
 const packedSchema = z.object({
@@ -189,9 +211,18 @@ async function decodePacked(payload: string, known: KnownCodes, loadCities: () =
   return r;
 }
 
+/** The stops as written in a link or a document: `KOR`, `Kyoto@JPN by train`. */
+export function writeStops(i: Pick<Invite, "stops" | "legs">): string[] {
+  return i.stops.map((s, k) => {
+    const place = isCityStop(s) ? `${s.n}@${s.c}` : s;
+    const by = k > 0 ? i.legs?.[k - 1] : null;
+    return by ? `${place} by ${by}` : place;
+  });
+}
+
 /** The hash for an invite, without the `#`: its fields, compressed. A city is written by name; decoding finds it again in the city list. */
 export function encodeInvite(i: Invite): string {
-  const raw: RawInvite = { to: i.stops.map((s) => (isCityStop(s) ? `${s.n}@${s.c}` : s)) };
+  const raw: RawInvite = { to: writeStops(i) };
   if (i.from) raw.from = i.from;
   if (i.email) raw.email = i.email;
   if (i.date) raw.date = i.date;
