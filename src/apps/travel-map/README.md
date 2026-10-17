@@ -30,6 +30,9 @@ Outside this folder, because Astro needs them there:
 Borders and names follow the UN. Those decisions are the `UN_*` tables at
 the top of the script. States exist only for the countries in `REGION_COUNTRIES`, plus the UK's nations.
 
+Cities (trip stops) are those over 100,000 people, every capital, and the travel destinations listed by GeoNames id
+in `scripts/extra-cities.mjs` (Venice, Hallstatt, Oia…). To add one, find its id on geonames.org.
+
 ## Invites
 
 An invite is a link: `/sandbox/travel-map/invite#i=…`, its fields compressed with lz-string (see `lib/invite.ts`).

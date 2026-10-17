@@ -5,6 +5,7 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { execFileSync } from "node:child_process";
 import mapshaper from "mapshaper";
+import { EXTRA_CITIES } from "./extra-cities.mjs";
 
 const NE_URL =
   "https://raw.githubusercontent.com/nvkelso/natural-earth-vector/master/geojson/ne_50m_admin_0_countries.geojson";
@@ -14,13 +15,14 @@ const NE_DISPUTED_URL =
   "https://raw.githubusercontent.com/nvkelso/natural-earth-vector/master/geojson/ne_50m_admin_0_breakaway_disputed_areas.geojson";
 const NE_UNITS_URL =
   "https://raw.githubusercontent.com/nvkelso/natural-earth-vector/master/geojson/ne_50m_admin_0_map_units.geojson";
-const GEONAMES_URL = "https://download.geonames.org/export/dump/cities15000.zip";
+const GEONAMES_URL = "https://download.geonames.org/export/dump/cities500.zip";
 /** Label glyphs (Open Sans, OFL). Every country and state name is Latin-1, so the first range is all we need. */
 const GLYPHS_URL = "https://demotiles.maplibre.org/font/Open%20Sans%20Semibold/0-255.pbf";
 /** Countries whose states/provinces are tracked: every country the 50m admin-1 file covers. */
 const REGION_COUNTRIES = ["AUS", "BRA", "CAN", "CHN", "IDN", "IND", "RUS", "USA", "ZAF"];
 /** The UK's nations come from the map-units file, keyed by their ISO 3166-2 codes. */
 const UK_NATIONS = { ENG: "GB-ENG", SCT: "GB-SCT", WLS: "GB-WLS", NIR: "GB-NIR" };
+/** Cities are kept above this population, plus every capital and the travel destinations in EXTRA_CITIES. */
 const MIN_POP = 100_000;
 
 // Borders and names follow the UN. Natural Earth draws who controls a place on the ground; these undo that
@@ -144,17 +146,18 @@ for (const f of [...ne.features].sort((a, b) => Number(isMainland(b.properties))
 }
 const zipFile = join(tmp, "cities.zip");
 await download(GEONAMES_URL, zipFile);
-const tsv = execFileSync("unzip", ["-p", zipFile, "cities15000.txt"], { maxBuffer: 256 * 1024 * 1024 }).toString("utf8");
+const tsv = execFileSync("unzip", ["-p", zipFile, "cities500.txt"], { maxBuffer: 256 * 1024 * 1024 }).toString("utf8");
 
 const cities = [];
 let unmapped = 0;
 for (const line of tsv.split("\n")) {
   const cols = line.split("\t");
   const pop = Number(cols[14]);
-  if (!(pop > MIN_POP)) continue;
+  const extra = EXTRA_CITIES[cols[0]];
+  if (!(pop > MIN_POP) && cols[7] !== "PPLC" && !extra) continue;
   const iso3 = iso2to3.get(cols[8]);
   if (!iso3) { unmapped++; continue; }
-  cities.push([cols[1], iso3, round(Number(cols[4])), round(Number(cols[5])), pop]);
+  cities.push([extra ?? cols[1], iso3, round(Number(cols[4])), round(Number(cols[5])), pop]);
 }
 cities.sort((a, b) => b[4] - a[4]);
 writeFileSync("public/map/cities.json", JSON.stringify(cities));
