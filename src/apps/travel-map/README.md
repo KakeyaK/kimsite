@@ -33,6 +33,9 @@ the top of the script. States exist only for the countries in `REGION_COUNTRIES`
 Cities (trip stops) are those over 100,000 people, every capital, and the travel destinations listed by GeoNames id
 in `scripts/extra-cities.mjs` (Venice, Hallstatt, Oia…). To add one, find its id on geonames.org.
 
+A country is pinned on the map (trip lines, the vehicle, distances) at its capital: the GeoNames capital, saved as
+`point` in `lib/countries.json`. A country without one (Antarctica, a few territories) is pinned at its label point.
+
 ## Invites
 
 An invite has destinations, and may say where the trip leaves from and comes back to (`start`, `return`): those are on

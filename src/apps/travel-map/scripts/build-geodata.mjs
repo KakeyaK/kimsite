@@ -95,7 +95,7 @@ const meta = simplified.features
     };
   })
   .sort((a, b) => a.name.localeCompare(b.name));
-writeFileSync("src/apps/travel-map/lib/countries.json", JSON.stringify(meta));
+// countries.json is written once the cities are read (step 4), which give each country its capital.
 // The shipped GeoJSON only needs what the map reads; the other fields were for the meta above.
 for (const f of simplified.features) {
   const { ADM0_A3, NAME, CONTINENT } = f.properties;
@@ -149,6 +149,8 @@ await download(GEONAMES_URL, zipFile);
 const tsv = execFileSync("unzip", ["-p", zipFile, "cities500.txt"], { maxBuffer: 256 * 1024 * 1024 }).toString("utf8");
 
 const cities = [];
+/** Each country's capital (GeoNames PPLC), the most populous where there are several, as [lon, lat, population]. */
+const capitals = new Map();
 let unmapped = 0;
 for (const line of tsv.split("\n")) {
   const cols = line.split("\t");
@@ -157,10 +159,16 @@ for (const line of tsv.split("\n")) {
   if (!(pop > MIN_POP) && cols[7] !== "PPLC" && !extra) continue;
   const iso3 = iso2to3.get(cols[8]);
   if (!iso3) { unmapped++; continue; }
-  cities.push([extra ?? cols[1], iso3, round(Number(cols[4])), round(Number(cols[5])), pop]);
+  const [lat, lon] = [round(Number(cols[4])), round(Number(cols[5]))];
+  cities.push([extra ?? cols[1], iso3, lat, lon, pop]);
+  if (cols[7] === "PPLC" && !(capitals.get(iso3)?.[2] >= pop)) capitals.set(iso3, [lon, lat, pop]);
 }
 cities.sort((a, b) => b[4] - a[4]);
 writeFileSync("public/map/cities.json", JSON.stringify(cities));
+// Where a country sits on the map (trip lines, distances): its capital. Without one, the label point, which is
+// always on the country, unlike the middle of its box (Japan's falls in the sea).
+for (const c of meta) c.point = capitals.get(c.iso)?.slice(0, 2) ?? c.label;
+writeFileSync("src/apps/travel-map/lib/countries.json", JSON.stringify(meta));
 
 // 5. Glyphs for the map's text labels (MapLibre can't draw text without them).
 mkdirSync("public/map/fonts/sans", { recursive: true });
