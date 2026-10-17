@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from "preact/hooks";
 import { MapView } from "@apps/travel-map/lib/mapView";
 
-export function useMapView(opts: { globe?: boolean; interactive?: boolean } = {}) {
+export function useMapView(opts: { globe?: boolean; interactive?: boolean; cooperative?: boolean } = {}) {
   const ref = useRef<HTMLDivElement>(null);
   const [view, setView] = useState<MapView | null>(null);
   const [error, setError] = useState<string | null>(null);

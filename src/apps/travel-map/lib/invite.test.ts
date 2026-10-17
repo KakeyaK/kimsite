@@ -1,7 +1,7 @@
 import LZString from "lz-string";
 import { describe, it, expect, vi } from "vitest";
 import type { CityRow } from "./cities";
-import { decodeInvite, encodeInvite, findCity, inviteUrl, MAX_MESSAGE, MAX_STOPS, type Invite, type RawInvite } from "./invite";
+import { decodeInvite, encodeInvite, findCity, inviteUrl, MAX_MESSAGE, MAX_STOPS, MAX_TITLE, tripRoute, type Invite, type RawInvite } from "./invite";
 
 const known = { countries: new Set(["JPN", "KOR", "BRA", "PRT", "CHN"]), regions: new Set(["BR-BA"]) };
 const rows: CityRow[] = [
@@ -97,6 +97,48 @@ describe("cities", () => {
   });
 });
 
+describe("the route", () => {
+  const trip: Invite = {
+    title: "Kyoto by boat",
+    start: kyoto,
+    stops: ["KOR", "BR-BA"],
+    finish: kyoto,
+    legs: ["boat", null, "plane"],
+    message: "Come!",
+    notes: ["Meet at the station", "Night markets", null, "Home"],
+  };
+
+  it("round-trips a start, a return, a title and the notes", async () => {
+    expect(await roundTrip(trip)).toEqual({ ok: true, value: trip, unknown: [] });
+  });
+
+  it("lists the points in order, with how you get to each and its note", () => {
+    expect(tripRoute(trip)).toEqual([
+      { stop: kyoto, role: "start", by: null, note: "Meet at the station" },
+      { stop: "KOR", role: "stop", by: "boat", note: "Night markets" },
+      { stop: "BR-BA", role: "stop", by: null, note: null },
+      { stop: kyoto, role: "finish", by: "plane", note: "Home" },
+    ]);
+    expect(tripRoute({ stops: ["JPN"] })).toEqual([{ stop: "JPN", role: "stop", by: null, note: null }]);
+  });
+
+  it("takes how you get to the first place when the trip has a start", async () => {
+    const r = await decode(link({ start: "PRT", to: ["JPN by plane"] }));
+    expect(r).toEqual({ ok: true, unknown: [], value: { start: "PRT", stops: ["JPN"], legs: ["plane"] } });
+  });
+
+  it("drops a skipped place's note with it", async () => {
+    const r = await decode(link({ start: "ZZZ", to: ["JPN", "KOR"], notes: ["gone", "", "Seoul"] }));
+    expect(r).toEqual({ ok: true, unknown: ["ZZZ"], value: { stops: ["JPN", "KOR"], notes: [null, "Seoul"] } });
+  });
+
+  it("counts the notes with the message against the limit", async () => {
+    const half = "x".repeat(MAX_MESSAGE / 2);
+    expect((await decode(link({ to: ["JPN"], msg: half, notes: [half] }))).ok).toBe(true);
+    expect(await decode(link({ to: ["JPN"], msg: half, notes: [`${half}!`] }))).toMatchObject({ ok: false, error: { field: "msg" } });
+  });
+});
+
 describe("skipped places", () => {
   it("drops unknown codes and cities that can't be found, and lists them", async () => {
     const r = await decode(link({ to: ["JPN", "ZZZ", "BR-XX", "Atlantis@JPN", "Kyoto@YYY"] }));
@@ -135,6 +177,11 @@ describe("broken links name the field", () => {
     [link({ to: ["JPN"], end: "2027-04-01" }), "end"],
     [link({ to: ["JPN"], date: "2027-04-10", end: "2027-04-01" }), "end"],
     [link({ to: ["JPN"], msg: "x".repeat(MAX_MESSAGE + 1) }), "msg"],
+    [link({ to: ["JPN"], title: "x".repeat(MAX_TITLE + 1) }), "title"],
+    [link({ to: ["JPN"], start: "Lisbon" }), "start"],
+    [link({ to: ["JPN"], start: "PRT by plane" }), "start"],
+    [link({ to: ["JPN"], return: "PRT by car" }), "return"],
+    [link({ to: ["JPN"], notes: ["a", "b"] }), "notes"],
   ])("%j → error in %s", async (hash, field) => {
     const r = await decode(hash);
     expect(r.ok).toBe(false);
