@@ -1,11 +1,14 @@
 import { useEffect, useMemo, useRef, useState } from "preact/hooks";
 import { emptyData, isEmptyData, setRegion, type CountryEntry, type ISO3, type TravelData } from "@apps/travel-map/lib/data";
 import { createFlag, createStore, ONBOARDING_KEY } from "@apps/travel-map/lib/storage";
+import { createInviteStore, type SavedInvite } from "@apps/travel-map/lib/savedInvites";
+import { decodeInvite, type Invite } from "@apps/travel-map/lib/invite";
+import { loadCities } from "@apps/travel-map/lib/cities";
 import { regionColors, statusColors } from "@apps/travel-map/lib/stats";
 import { countryName, KNOWN_CODES, regionByCode } from "@apps/travel-map/lib/meta";
 import type { PlaceRef } from "@apps/travel-map/lib/mapView";
 import { markPicked, type Place } from "@apps/travel-map/lib/places";
-import { planStopFromSearch, type Stop } from "@apps/travel-map/lib/stops";
+import { planStopFromSearch, stopList, type Stop } from "@apps/travel-map/lib/stops";
 import { cn } from "@lib/utils";
 import { useMapView } from "./useMapView";
 import { PlacePanel } from "./PlacePanel";
@@ -16,6 +19,7 @@ import { legendCorner, MapLegend, STATUS_LEGEND } from "./MapLegend";
 import { MapNotes } from "./MapNotes";
 import { InviteBuilder } from "./InviteBuilder";
 import { Onboarding } from "./Onboarding";
+import { SavedInvites } from "./SavedInvites";
 import { ShareMap } from "./ShareMap";
 import { btn, container, mapBox, overlay } from "./ui";
 
@@ -45,6 +49,13 @@ export default function TravelMap() {
   });
   const plannerRef = useRef<HTMLDivElement>(null);
 
+  const invites = useMemo(() => createInviteStore(), []);
+  const [saved, setSaved] = useState<SavedInvite[]>(() => invites.list());
+  /** The saved invite in the planner: one opened with Edit, or the new one once it has a link. Its next link replaces it. */
+  const [editing, setEditing] = useState<string | null>(null);
+  /** What the planner starts with when a saved invite is opened; the key remounts it so it starts over. */
+  const [opened, setOpened] = useState<{ key: number; invite: Invite; url: string } | null>(null);
+
   useEffect(() => {
     if (!new URLSearchParams(window.location.search).has("plan")) return;
     history.replaceState(history.state, "", window.location.pathname); // a reload shouldn't reopen it
@@ -70,10 +81,43 @@ export default function TravelMap() {
     setSelected(place.kind === "region" ? { kind: "region", code: place.code } : { kind: "country", code: place.iso });
   }
 
+  const scrollToPlanner = () => requestAnimationFrame(() => plannerRef.current?.scrollIntoView({ behavior: "smooth", block: "start" }));
+
   /** Opens an empty trip planner (or scrolls to the one already open, keeping what's in it). */
   function planTrip() {
     setPlanning((stops) => stops ?? []);
-    requestAnimationFrame(() => plannerRef.current?.scrollIntoView({ behavior: "smooth", block: "start" }));
+    scrollToPlanner();
+  }
+
+  function closePlanner() {
+    setPlanning(null);
+    setEditing(null);
+    setOpened(null);
+  }
+
+  /** Opens a saved invite in the planner, in place of what's there. */
+  async function editInvite(entry: SavedInvite): Promise<string | null> {
+    const r = await decodeInvite(entry.invite, KNOWN_CODES, loadCities);
+    if (!r.ok) return `Couldn't open that invite: ${r.error.field} ${r.error.message}.`;
+    setOpened((o) => ({ key: (o?.key ?? 0) + 1, invite: r.value, url: entry.url }));
+    setEditing(entry.id);
+    setPlanning(r.value.stops);
+    scrollToPlanner();
+    return null;
+  }
+
+  function saveInvite(invite: Invite, encoded: string, url: string): boolean {
+    const id = editing ?? crypto.randomUUID();
+    const ok = invites.put({ id, invite: encoded, url, title: stopList(invite.stops), saved: new Date().toISOString() });
+    setEditing(id);
+    setSaved(invites.list());
+    return ok;
+  }
+
+  function deleteInvite(id: string) {
+    invites.remove(id);
+    setSaved(invites.list());
+    if (editing === id) setEditing(null); // the planner's next link makes a new one
   }
 
   useEffect(() => {
@@ -167,9 +211,17 @@ export default function TravelMap() {
       <div class={cn(container, "space-y-10")}>
         {planning && (
           <div ref={plannerRef} class="scroll-mt-24">
-            <InviteBuilder stops={planning} onStopsChange={setPlanning} onClose={() => setPlanning(null)} />
+            <InviteBuilder
+              key={opened?.key ?? 0}
+              stops={planning}
+              onStopsChange={setPlanning}
+              onClose={closePlanner}
+              initial={opened ?? undefined}
+              onLink={saveInvite}
+            />
           </div>
         )}
+        {saved.length > 0 && <SavedInvites invites={saved} editing={editing} onEdit={editInvite} onDelete={deleteInvite} />}
         <ShareMap data={data} />
         <ImportExport data={data} onImport={update} onClear={() => { store.clear(); setData(emptyData()); }} />
         <MapNotes />

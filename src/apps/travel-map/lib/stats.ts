@@ -7,6 +7,8 @@ import type { OverlapKey } from "./overlap";
  */
 export interface CountryMeta {
   iso: ISO3; name: string; continent: string; bbox: BBox; label: [number, number]; labelRank: number;
+  /** Where the country is pinned (trip stops, lines, distances): its capital, or its label point when it has none. */
+  point: [number, number];
 }
 /** A colour on the map: a status, a trip stop, or an overlap category (see overlap.ts). Each is a `--map-*` variable. */
 export type ColorKey = Status | "stop" | OverlapKey;

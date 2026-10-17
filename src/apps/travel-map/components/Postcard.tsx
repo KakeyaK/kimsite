@@ -1,8 +1,9 @@
-import type { Invite } from "@apps/travel-map/lib/invite";
+import type { ComponentChildren } from "preact";
+import { tripRoute, type Invite } from "@apps/travel-map/lib/invite";
 import { daysUntil } from "@apps/travel-map/lib/geo";
+import { MODE_EMOJI, stopList, stopName } from "@apps/travel-map/lib/stops";
 import { cn } from "@lib/utils";
 import { renderMarkdown } from "./markdown";
-import { card } from "./ui";
 
 function countdown(date: string): string | null {
   const n = daysUntil(date, new Date());
@@ -13,26 +14,57 @@ function countdown(date: string): string | null {
   return `This trip was ${-n} day${n === -1 ? "" : "s"} ago`;
 }
 
-/** Whether the invite has anything for the card to show: a date, a message or who it's from. */
-export function hasPostcard(invite: Invite): boolean {
-  return Boolean((invite.date && countdown(invite.date)) || invite.message?.trim() || invite.from?.trim());
+/** The cover's headline: the invite's title, or who invites you where. */
+export const inviteHeadline = (invite: Invite): string =>
+  invite.title?.trim() || (invite.from ? `${invite.from} says: let's visit ${stopList(invite.stops)}!` : `Let's visit ${stopList(invite.stops)}!`);
+
+/**
+ * Markdown from the inviter (a message or a place's note). <article> picks up the site's prose styles (global.css);
+ * images take the full width, capped in height so a tall one doesn't push the text away.
+ * `editing`: shown in the trip planner, so broken images get a how-to-fix hint.
+ */
+export function InviteText({ text, editing = false, class: className }: { text: string; editing?: boolean; class?: string }) {
+  return (
+    <article class={cn("prose-sm sm:prose-base [&_img]:max-h-80 [&_img]:w-full [&_img]:rounded-md [&_img]:object-cover [&>:first-child]:mt-0 [&>:last-child]:mb-0", className)}>
+      {renderMarkdown(text, { editing })}
+    </article>
+  );
 }
 
-/** `editing`: shown as a preview in the trip planner, so broken images get a how-to-fix hint. */
-export function Postcard({ invite, editing = false }: { invite: Invite; editing?: boolean }) {
-  if (!hasPostcard(invite)) return null;
-  const when = invite.date ? countdown(invite.date) : null;
-
-  // <article> picks up the site's prose styles (global.css), which style the Markdown.
+/** The route in a line: Paris → 🚌 Lyon → ✈️ Kyoto. */
+export function RouteLine({ invite }: { invite: Invite }) {
+  const route = tripRoute(invite);
   return (
-    <article class={cn(card, "space-y-3 bg-white/60 dark:bg-black/20 [&_img]:max-h-96 [&_img]:rounded-md [&>div>:first-child]:mt-0 [&>div>:last-child]:mb-0")}>
-      {when && (
-        <p class="not-prose text-sm font-semibold text-black dark:text-white">
-          🗓 {invite.date}{invite.end && invite.end !== invite.date ? ` → ${invite.end}` : ""} · {when}
-        </p>
-      )}
-      {invite.message?.trim() && <div>{renderMarkdown(invite.message, { editing })}</div>}
-      {invite.from?.trim() && <p class="not-prose text-right text-sm">— {invite.from}</p>}
-    </article>
+    <p class="text-sm">
+      {route.map((p, i) => (
+        <span key={i} class={cn(p.role !== "stop" && "opacity-70")}>
+          {i > 0 && <span aria-hidden="true"> → {p.by && MODE_EMOJI[p.by]} </span>}
+          {i > 0 && p.by && <span class="sr-only">, by {p.by}, to </span>}
+          {stopName(p.stop)}
+        </span>
+      ))}
+    </p>
+  );
+}
+
+/** The invite's cover: the headline, the dates, the route and the message. `children` go at the end (buttons). */
+export function Postcard({ invite, editing = false, children }: { invite: Invite; editing?: boolean; children?: ComponentChildren }) {
+  const when = invite.date ? countdown(invite.date) : null;
+  return (
+    <div class="space-y-4">
+      <div class="space-y-1">
+        {invite.from && <p class="text-xs uppercase tracking-wide">{invite.from} invites you</p>}
+        <h2 id="cover-title" tabIndex={-1} class="text-2xl font-semibold text-black focus:outline-none dark:text-white">{inviteHeadline(invite)}</h2>
+        {when && (
+          <p class="text-sm font-semibold text-black dark:text-white">
+            🗓 {invite.date}{invite.end && invite.end !== invite.date ? ` → ${invite.end}` : ""} · {when}
+          </p>
+        )}
+        {(invite.stops.length > 1 || invite.start || invite.finish) && <RouteLine invite={invite} />}
+      </div>
+      {invite.message?.trim() && <InviteText text={invite.message} editing={editing} />}
+      {invite.from?.trim() && invite.message?.trim() && <p class="text-right text-sm">— {invite.from}</p>}
+      {children}
+    </div>
   );
 }

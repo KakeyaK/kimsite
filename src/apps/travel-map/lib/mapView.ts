@@ -10,7 +10,7 @@ import "../styles.css";
 import type { FeatureCollection } from "geojson";
 import type { ISO3 } from "./data";
 import type { ColorKey } from "./stats";
-import { alongLine, greatCircle, type LonLat } from "./geo";
+import { alongLine, distanceKm, greatCircle, type LonLat } from "./geo";
 import { isCityStop, isRegionStop, MODE_EMOJI, MODES, stopCenter, type CityStop, type Mode, type Stop } from "./stops";
 import { COUNTRIES, REGIONS, countryByIso, regionByCode, regionsOf } from "./meta";
 import { OVERLAP_KEYS } from "./overlap";
@@ -73,11 +73,18 @@ const LABELS: FeatureCollection = {
 const SELECTED_OPACITY: ExpressionSpecification = ["case", ["boolean", ["feature-state", "selected"], false], 1, 0];
 /** Zoom for flying to a single city. */
 const CITY_ZOOM = 6;
+/** Padding with every side given. */
+type Padding = { top: number; right: number; bottom: number; left: number };
+const fullPadding = (p: number | PaddingOptions): Padding =>
+  typeof p === "number" ? { top: p, right: p, bottom: p, left: p } : { top: p.top ?? 0, right: p.right ?? 0, bottom: p.bottom ?? 0, left: p.left ?? 0 };
+
+/** A globe map is a globe up to this zoom, then flattens until it's flat from FLAT_ZOOM on. */
+const GLOBE_ZOOM = 2;
+const FLAT_ZOOM = 3.5;
 
 /** What a click on the map landed on: a state when one is drawn there, otherwise a country. */
 export type PlaceRef = { kind: "country" | "region"; code: string };
 const ICON_RATIO = 2; // drawn at 2x for sharp edges on retina screens
-const sleep = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
 
 const VEHICLE_SIZE = 34;
 const EMOJI_FONT = '"Apple Color Emoji", "Segoe UI Emoji", "Noto Color Emoji", sans-serif';
@@ -85,7 +92,7 @@ const vehicleIcon = (mode: Mode) => `vehicle-${mode}`;
 /** The ✈️ emoji points north-east: turned this much less than the line's bearing, it points along it. */
 const PLANE_EMOJI_BEARING = 45;
 
-/** What travels along the travel lines during the intro: the mode's emoji, with a soft land-coloured halo. */
+/** What travels along a travel line while the camera follows it: the mode's emoji, with a soft land-coloured halo. */
 function vehicleImage(mode: Mode): ImageData {
   const size = VEHICLE_SIZE * ICON_RATIO;
   const canvas = document.createElement("canvas");
@@ -108,19 +115,22 @@ export class MapView {
   private selected: PlaceRef | null = null;
   private ready: Promise<void>;
   private themeObserver: MutationObserver;
-  private cancelSpin: (() => void) | null = null;
   private destroyed = false;
-  private introSkipped = false;
+  /** Bumped by every `travel`, so a vehicle still moving for an earlier one stops. */
+  private trip = 0;
+  /** The last route framed from the globe: its zoom, and the room it was framed in (see showRoute). */
+  private routeFit: { route: string; center: maplibregl.LngLat; zoom: number; room: number } | null = null;
   private dark = document.documentElement.classList.contains("dark");
 
-  constructor({ container, globe = false, interactive = true }: { container: HTMLElement; globe?: boolean; interactive?: boolean }) {
+  /** `cooperative`: plain wheel and one-finger gestures scroll the page (for maps the page scrolls past). */
+  constructor({ container, globe = false, interactive = true, cooperative = interactive }: { container: HTMLElement; globe?: boolean; interactive?: boolean; cooperative?: boolean }) {
     const style: StyleSpecification = {
       version: 8,
       // Self-hosted (see ../scripts/build-geodata.mjs): Latin-1 only, which covers every place name we draw.
       glyphs: `${location.origin}/map/fonts/{fontstack}/{range}.pbf`,
       // Globe when zoomed out, flattening into mercator as the camera zooms in (MapLibre v5 projection expression).
       projection: globe
-        ? { type: ["interpolate", ["linear"], ["zoom"], 2, "vertical-perspective", 3.5, "mercator"] }
+        ? { type: ["interpolate", ["linear"], ["zoom"], GLOBE_ZOOM, "vertical-perspective", FLAT_ZOOM, "mercator"] }
         : { type: "mercator" },
       sources: {
         countries: { type: "geojson", data: "/map/countries.geojson", promoteId: "ADM0_A3", attribution: "Natural Earth" },
@@ -128,6 +138,7 @@ export class MapView {
         labels: { type: "geojson", data: LABELS },
         cities: { type: "geojson", data: EMPTY, attribution: "GeoNames" },
         arcs: { type: "geojson", data: EMPTY },
+        endpoints: { type: "geojson", data: EMPTY },
         vehicle: { type: "geojson", data: EMPTY },
       },
       layers: [
@@ -180,6 +191,12 @@ export class MapView {
           layout: { "line-join": "round" },
           paint: { "line-color": token("stop"), "line-width": 1.5, "line-dasharray": [3, 1.5] },
         },
+        // The leg being travelled (setActiveLeg), drawn solid over its dashes.
+        {
+          id: "arcs-active", type: "line", source: "arcs", filter: ["==", ["get", "leg"], -1],
+          layout: { "line-cap": "round", "line-join": "round" },
+          paint: { "line-color": token("stop"), "line-width": 2.5 },
+        },
         // Country names, most important first; ones that would overlap are left out until there's room.
         {
           id: "labels", type: "symbol", source: "labels", minzoom: LABEL_FADE_START,
@@ -206,6 +223,16 @@ export class MapView {
             "circle-color": token("stop"),
           },
         },
+        // Where a trip leaves from and comes back to: rings, as they aren't destinations.
+        {
+          id: "endpoints", type: "circle", source: "endpoints",
+          paint: {
+            "circle-radius": ["interpolate", ["linear"], ["zoom"], 1, 3, 4, 4.5, 7, 6],
+            "circle-color": token("land"),
+            "circle-stroke-color": token("stop"),
+            "circle-stroke-width": 2,
+          },
+        },
         {
           id: "vehicle", type: "symbol", source: "vehicle",
           layout: {
@@ -228,10 +255,12 @@ export class MapView {
       maxZoom: 8,
       interactive,
       dragRotate: false,
-      renderWorldCopies: false,
+      // A flat map shows one world. A globe needs the copies: without them, while it's still drawn flat on the way out,
+      // the camera's centre is held at 0° and a flight back to the globe ends there.
+      renderWorldCopies: globe,
       attributionControl: { compact: true },
       // The map spans the page width, so plain wheel/one-finger gestures scroll the page; Ctrl/⌘ or two fingers move the map.
-      cooperativeGestures: interactive,
+      cooperativeGestures: interactive && cooperative,
     });
     if (interactive) {
       this.map.touchZoomRotate.disableRotation();
@@ -274,6 +303,9 @@ export class MapView {
     this.map.setPaintProperty("arcs", "line-color", token("stop"));
     this.map.setPaintProperty("arcs-halo", "line-color", token("land"));
     this.map.setPaintProperty("cities", "circle-color", token("stop"));
+    this.map.setPaintProperty("arcs-active", "line-color", token("stop"));
+    this.map.setPaintProperty("endpoints", "circle-color", token("land"));
+    this.map.setPaintProperty("endpoints", "circle-stroke-color", token("stop"));
     for (const mode of MODES) {
       if (this.map.hasImage(vehicleIcon(mode))) this.map.updateImage(vehicleIcon(mode), vehicleImage(mode));
     }
@@ -330,54 +362,131 @@ export class MapView {
   }
 
   private flyToBounds(
-    [w, s, e, n]: [number, number, number, number],
+    bounds: [number, number, number, number],
     { duration, padding, minZoom }: { duration: number; padding: number | PaddingOptions; minZoom: number },
   ): void {
-    const camera = this.map.cameraForBounds([[w, s], [e, n]], { padding, maxZoom: 5 });
+    const camera = this.fit(bounds, padding, 5);
     if (!camera) return; // padding larger than the map: nothing sensible to show
-    this.map.flyTo({ ...camera, zoom: Math.max(camera.zoom ?? 0, minZoom), duration: reducedMotion() ? 0 : duration });
+    this.map.flyTo({ ...camera, zoom: Math.max(camera.zoom, minZoom), duration: reducedMotion() ? 0 : duration });
   }
 
   /**
-   * Slow spin on the globe, then fly to each stop in turn, pausing at each one.
-   * `onStop(i)` fires as the camera heads to stop i. Resolves once the camera settles on the last stop.
-   * `legs[i]` is how the leg from stop i to the next is travelled: what moves along it (a plane when not given).
+   * The camera that frames a box in what `padding` leaves of the map. The padding becomes the camera's own, so the box
+   * is centred in the free space; that also holds on the globe, where shifting the centre sideways instead (what
+   * cameraForBounds does) can turn half the box out of sight.
    */
-  async globeIntro(
-    stops: Stop[],
-    { legs = [], spinMs = 1800, pauseMs = 800, onStop }: { legs?: (Mode | null)[]; spinMs?: number; pauseMs?: number; onStop?: (i: number) => void } = {},
+  private fit(
+    [w, s, e, n]: [number, number, number, number],
+    padding: number | PaddingOptions,
+    maxZoom: number,
+  ): { center: maplibregl.LngLat; zoom: number; padding: Padding } | null {
+    const pad = fullPadding(padding);
+    // cameraForBounds leaves out the camera's current padding as well as the one given: take the current one back off.
+    const cur = fullPadding(this.map.getPadding());
+    const camera = this.map.cameraForBounds([[w, s], [e, n]], {
+      padding: { top: pad.top - cur.top, right: pad.right - cur.right, bottom: pad.bottom - cur.bottom, left: pad.left - cur.left },
+      maxZoom,
+    });
+    if (camera?.zoom === undefined) return null;
+    // The box's middle on a flat map, so a tall country is centred as it's drawn.
+    const sw = maplibregl.MercatorCoordinate.fromLngLat([w, s]);
+    const ne = maplibregl.MercatorCoordinate.fromLngLat([e, n]);
+    const center = new maplibregl.MercatorCoordinate((sw.x + ne.x) / 2, (sw.y + ne.y) / 2).toLngLat();
+    return { center, zoom: camera.zoom, padding: pad };
+  }
+
+  /** Frame the whole route, lines and all. Resolves once the camera settles. */
+  async showRoute(stops: Stop[], { padding = 48, duration = 1500 }: { padding?: number | PaddingOptions; duration?: number } = {}): Promise<void> {
+    await this.ready;
+    this.stopTravel();
+    if (stops.length === 1) return this.settle(() => this.flyToStop(stops[0], { duration, padding }), duration);
+    // The lines' points, each line shifted by whole turns to start where the one before ended, so a route across the
+    // date line is framed across it rather than around the world.
+    const points: LonLat[] = [stopCenter(stops[0])];
+    for (const stop of stops.slice(1)) {
+      const line = greatCircle(points[points.length - 1], stopCenter(stop));
+      const shift = Math.round((points[points.length - 1][0] - line[0][0]) / 360) * 360;
+      points.push(...line.map(([lon, lat]): LonLat => [lon + shift, lat]));
+    }
+    const lons = points.map((p) => p[0]);
+    const lats = points.map((p) => p[1]);
+    const camera = this.fit([Math.min(...lons), Math.min(...lats), Math.max(...lons), Math.max(...lats)], padding, CITY_ZOOM);
+    if (!camera) return;
+    // cameraForBounds (in `fit`) is only a first guess on the globe, so while the map is drawn as one, the route is
+    // measured on it. Zoomed in, the map is flat and can't be measured that way: a route measured on the globe keeps
+    // that camera, its zoom scaled to the room there is now (zoom is the log of size).
+    const { clientWidth: w, clientHeight: h } = this.map.getContainer();
+    const room = Math.min(w - camera.padding.left - camera.padding.right, h - camera.padding.top - camera.padding.bottom);
+    const key = JSON.stringify(stops.map(stopCenter));
+    if (this.map.getZoom() <= GLOBE_ZOOM) {
+      Object.assign(camera, this.measureFit(points, camera));
+      this.routeFit = { route: key, center: camera.center, zoom: camera.zoom, room };
+    } else if (this.routeFit?.route === key && room > 0) {
+      camera.center = this.routeFit.center;
+      camera.zoom = this.routeFit.zoom + Math.log2(room / this.routeFit.room);
+    }
+    return this.settle(() => this.map.flyTo({ ...camera, duration: reducedMotion() ? 0 : duration }), duration);
+  }
+
+  /**
+   * Refine a camera so `points` fill the room its padding leaves, by trying it: jump there, see where the points land,
+   * zoom by how much bigger they could be and centre on them, a few times over, then jump back. Nothing is drawn in
+   * between, so none of it shows.
+   */
+  private measureFit(points: LonLat[], camera: { center: maplibregl.LngLat; zoom: number; padding: Padding }) {
+    const saved = { center: this.map.getCenter(), zoom: this.map.getZoom(), padding: this.map.getPadding() };
+    const { clientWidth: w, clientHeight: h } = this.map.getContainer();
+    const { top, right, bottom, left } = camera.padding;
+    let { center, zoom } = camera;
+    for (let i = 0; i < 3; i++) {
+      this.map.jumpTo({ center, zoom, padding: camera.padding });
+      const px = points.map((p) => this.map.project(p));
+      const xs = px.map((p) => p.x);
+      const ys = px.map((p) => p.y);
+      const [x0, x1, y0, y1] = [Math.min(...xs), Math.max(...xs), Math.min(...ys), Math.max(...ys)];
+      const scale = Math.min((w - left - right) / Math.max(1, x1 - x0), (h - top - bottom) / Math.max(1, y1 - y0));
+      center = this.map.unproject([(x0 + x1) / 2, (y0 + y1) / 2]);
+      zoom = Math.min(CITY_ZOOM, zoom + Math.log2(scale * 0.9));
+    }
+    this.map.jumpTo(saved);
+    return { center, zoom };
+  }
+
+  /**
+   * Fly to `to`. Coming from `from`, a vehicle (`mode`, a plane when not said) travels the line between them while the
+   * camera follows, for longer the farther it goes. Resolves once there; a later `travel` or `showRoute` cuts it short.
+   */
+  async travel(
+    to: Stop,
+    { from, mode, padding = 48 }: { from?: Stop; mode?: Mode | null; padding?: number | PaddingOptions } = {},
   ): Promise<void> {
     await this.ready;
-    if (!reducedMotion() && !this.introSkipped) await this.spin(spinMs);
-    for (let i = 0; i < stops.length && !this.destroyed && !this.introSkipped; i++) {
-      onStop?.(i);
-      const duration = i === 0 ? 2500 : 2000;
-      // From the second stop on, a plane (or train, bus, boat) travels the leg while the camera follows.
-      const leg = i > 0 && !reducedMotion()
-        ? this.moveVehicle(legs[i - 1] ?? "plane", greatCircle(stopCenter(stops[i - 1]), stopCenter(stops[i])), duration)
-        : null;
-      await Promise.all([this.flyAndSettle(stops[i], duration), leg]);
-      if (i < stops.length - 1 && !reducedMotion() && !this.introSkipped) await sleep(pauseMs);
-    }
-    if (!this.destroyed) this.setVehicle(null);
+    const trip = ++this.trip;
+    this.setVehicle(null);
+    const km = from ? distanceKm(stopCenter(from), stopCenter(to)) : 0;
+    // Lyon to Paris takes about a second and a quarter; the other side of the world, at most 2.6s.
+    const duration = Math.round(Math.min(2600, 900 + 1700 * Math.sqrt(km / 10_000)));
+    const leg = from && km > 0 && !reducedMotion()
+      ? this.moveVehicle(trip, mode ?? "plane", greatCircle(stopCenter(from), stopCenter(to)), duration)
+      : null;
+    await Promise.all([this.settle(() => this.flyToStop(to, { duration, padding }), duration), leg]);
+    if (trip === this.trip && !this.destroyed) this.setVehicle(null);
   }
 
-  /** Cut the intro short: `globeIntro` resolves at once, with the camera on the last stop, where the tour ends. */
-  skipIntro(stops: Stop[]): void {
-    this.introSkipped = true;
-    this.cancelSpin?.();
+  /** Stop any vehicle moving and the camera with it. */
+  stopTravel(): void {
+    this.trip++;
     this.map.stop();
     if (this.map.getSource("vehicle")) this.setVehicle(null);
-    if (stops.length) this.flyToStop(stops[stops.length - 1], { duration: 0 });
   }
 
-  /** Move the vehicle along `line` over `ms`, eased like the camera. It stays at the end until the next leg. */
-  private moveVehicle(mode: Mode, line: LonLat[], ms: number): Promise<void> {
+  /** Move the vehicle along `line` over `ms`, eased like the camera, until `trip` is no longer the current one. */
+  private moveVehicle(trip: number, mode: Mode, line: LonLat[], ms: number): Promise<void> {
     return new Promise((resolve) => {
       const start = performance.now();
       const ease = (t: number) => (t < 0.5 ? 2 * t * t : 1 - (-2 * t + 2) ** 2 / 2);
       const step = (now: number) => {
-        if (this.destroyed || this.introSkipped) return resolve();
+        if (this.destroyed || trip !== this.trip) return resolve();
         const f = Math.min(1, (now - start) / ms);
         this.setVehicle({ mode, ...alongLine(line, ease(f)) });
         if (f < 1) requestAnimationFrame(step);
@@ -395,12 +504,13 @@ export class MapView {
     );
   }
 
-  private flyAndSettle(stop: Stop, duration: number): Promise<void> {
+  /** Start a camera move and resolve once it ends (or a little after it should have, if `moveend` never comes). */
+  private settle(move: () => void, duration: number): Promise<void> {
     const settled = new Promise<void>((resolve) => {
       this.map.once("moveend", () => resolve());
-      setTimeout(resolve, duration + 1000); // fallback if moveend never fires
+      setTimeout(resolve, (reducedMotion() ? 0 : duration) + 1000);
     });
-    this.flyToStop(stop, { duration });
+    move();
     return settled;
   }
 
@@ -413,28 +523,6 @@ export class MapView {
     } else {
       this.flyToCountry(stop, { duration, padding });
     }
-  }
-
-  private spin(ms: number): Promise<void> {
-    return new Promise((resolve) => {
-      const start = performance.now();
-      const lng0 = this.map.getCenter().lng;
-      let raf = 0;
-      const step = (t: number) => {
-        const f = Math.min(1, (t - start) / ms);
-        this.map.jumpTo({ center: [lng0 + 120 * f, 20] });
-        if (f < 1) raf = requestAnimationFrame(step);
-        else {
-          this.cancelSpin = null;
-          resolve();
-        }
-      };
-      this.cancelSpin = () => {
-        cancelAnimationFrame(raf);
-        resolve();
-      };
-      raf = requestAnimationFrame(step);
-    });
   }
 
   /** Dots for a trip's city stops. */
@@ -450,6 +538,21 @@ export class MapView {
     });
   }
 
+  /** Rings where a trip leaves from and comes back to. */
+  async setEndpoints(stops: Stop[]): Promise<void> {
+    await this.ready;
+    (this.map.getSource("endpoints") as GeoJSONSource).setData({
+      type: "FeatureCollection",
+      features: stops.map((s) => ({ type: "Feature", properties: {}, geometry: { type: "Point", coordinates: stopCenter(s) } })),
+    });
+  }
+
+  /** Draw leg `i` of the lines (from stop i to i + 1) solid; null for none. */
+  async setActiveLeg(i: number | null): Promise<void> {
+    await this.ready;
+    this.map.setFilter("arcs-active", ["==", ["get", "leg"], i ?? -1]);
+  }
+
   /** Dashed great-circle lines from each stop to the next. */
   async setArcs(stops: Stop[]): Promise<void> {
     await this.ready;
@@ -458,7 +561,7 @@ export class MapView {
     for (let i = 1; i < centers.length; i++) {
       features.push({
         type: "Feature",
-        properties: {},
+        properties: { leg: i - 1 },
         geometry: { type: "LineString", coordinates: greatCircle(centers[i - 1], centers[i]) },
       });
     }
@@ -499,7 +602,6 @@ export class MapView {
 
   destroy(): void {
     this.destroyed = true;
-    this.cancelSpin?.();
     this.themeObserver.disconnect();
     this.map.remove();
   }

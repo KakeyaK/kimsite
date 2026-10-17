@@ -8,6 +8,16 @@ export function bboxCenter([w, s, e, n]: BBox): LonLat {
   return [(w + e) / 2, (s + n) / 2];
 }
 
+export const EARTH_KM = 6371;
+
+/** The great-circle distance between two points, in km. */
+export function distanceKm(a: LonLat, b: LonLat): number {
+  const [l1, p1] = [a[0] * RAD, a[1] * RAD];
+  const [l2, p2] = [b[0] * RAD, b[1] * RAD];
+  const h = Math.sin((p2 - p1) / 2) ** 2 + Math.cos(p1) * Math.cos(p2) * Math.sin((l2 - l1) / 2) ** 2;
+  return 2 * EARTH_KM * Math.asin(Math.min(1, Math.sqrt(h)));
+}
+
 /** Points along the great circle from a to b, with longitudes unwrapped so lines don't jump at ±180. */
 export function greatCircle(a: LonLat, b: LonLat, steps = 64): LonLat[] {
   const [l1, p1] = [a[0] * RAD, a[1] * RAD];

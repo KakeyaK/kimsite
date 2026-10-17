@@ -1,9 +1,17 @@
 import { describe, it, expect } from "vitest";
-import { alongLine, bboxCenter, greatCircle, daysUntil } from "./geo";
+import { alongLine, bboxCenter, distanceKm, greatCircle, daysUntil } from "./geo";
 
 describe("bboxCenter", () => {
   it("returns the middle of the box", () => {
     expect(bboxCenter([0, 0, 10, 20])).toEqual([5, 10]);
+  });
+});
+
+describe("distanceKm", () => {
+  it("measures along the great circle", () => {
+    expect(distanceKm([2.35, 48.86], [4.84, 45.76])).toBeCloseTo(392, -1); // Paris–Lyon
+    expect(distanceKm([2.35, 48.86], [139.69, 35.69])).toBeCloseTo(9712, -2); // Paris–Tokyo
+    expect(distanceKm([10, 10], [10, 10])).toBe(0);
   });
 });
 

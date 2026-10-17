@@ -37,7 +37,32 @@ describe("invite documents", () => {
   });
 
   it("writes every field, so the empty ones are there to fill in", () => {
-    expect(inviteDoc({ stops: ["JPN"], from: "Kim" })).toBe("---\nto:\n  - JPN\nfrom: Kim\nemail:\ndate:\nend:\n---\n\n\n");
+    expect(inviteDoc({ stops: ["JPN"], from: "Kim" })).toBe("---\ntitle:\nto:\n  - JPN\nstart:\nreturn:\nfrom: Kim\nemail:\ndate:\nend:\n---\n\n\n");
+  });
+
+  it("writes a note under a heading for its place, and reads it back", async () => {
+    const invite: Invite = {
+      title: "Spring trip",
+      start: "KOR",
+      stops: [kyoto, "BR-BA"],
+      finish: "KOR",
+      legs: ["plane", "plane", null],
+      message: "Let's go!\n\n## Plan\n\nSee below.",
+      notes: ["Meet at Incheon", "## Food\n\nRamen", null, "Back home"],
+    };
+    const text = inviteDoc(invite);
+    expect(text).toContain("start: KOR\nreturn: KOR\n");
+    expect(text).toContain("## KOR\n\nMeet at Incheon\n\n## Kyoto@JPN\n\n## Food\n\nRamen\n\n## KOR\n\nBack home");
+    expect(await parse(text)).toEqual({ ok: true, value: invite, unknown: [] });
+  });
+
+  it("matches note headings to places leniently, and leaves other headings in the text", async () => {
+    const text = doc("to: Kyoto@JPN, KOR by boat", "Hi\n\n## kyoto @ jpn\n\nTemples\n\n```\n## KOR\n```\n\n## Seoul ##\n\nMarkets");
+    expect(await parse(text)).toEqual({
+      ok: true,
+      unknown: [],
+      value: { stops: [kyoto, "KOR"], legs: ["boat"], message: "Hi", notes: ["Temples\n\n```\n## KOR\n```\n\n## Seoul ##\n\nMarkets", null] },
+    });
   });
 
   it("is lenient: a code fence, quotes, places on one line, lowercase codes, comments, Windows line ends", async () => {
@@ -62,7 +87,8 @@ describe("invite documents", () => {
     [doc("to: Kyoto, Japan"), "to"],
     [doc("to: JPN by train, KOR"), "to"],
     [doc(`to: ${Array(MAX_STOPS + 1).fill("JPN").join(", ")}`), "to"],
-    [doc("to: JPN\ntitle: Trip"), "title"],
+    [doc("to: JPN\nsubject: Trip"), "subject"],
+    [doc("to: JPN\nstart: JPN by train"), "start"],
     [doc("to: JPN\nmessage: Hi"), "message"],
     [doc("to: JPN\nfrom: Kim\n  - KOR"), "- KOR"],
     [doc("to: JPN\nfrom"), "from"],

@@ -50,8 +50,10 @@ export function stopBounds(s: Stop): BBox | null {
   return (isRegionStop(s) ? regionByCode(s)?.bbox : countryByIso(s)?.bbox) ?? null;
 }
 
+/** Where a stop is pinned: a city where it is, a country at its capital, a state in the middle of its box. */
 export function stopCenter(s: Stop): LonLat {
   if (isCityStop(s)) return [s.lo, s.la];
+  if (!isRegionStop(s)) return countryByIso(s)?.point ?? [0, 0];
   const bounds = stopBounds(s);
   return bounds ? bboxCenter(bounds) : [0, 0];
 }

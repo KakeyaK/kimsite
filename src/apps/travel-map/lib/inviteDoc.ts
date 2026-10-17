@@ -1,35 +1,50 @@
 import type { KnownCodes } from "./data";
 import type { CityRow } from "./cities";
-import { resolveInvite, writeStops, type DecodeResult, type Invite, type RawInvite } from "./invite";
+import { resolveInvite, tripRoute, writePlace, writeRoute, type DecodeResult, type Invite, type RawInvite } from "./invite";
+import { fold } from "./search";
 
 /*
  * An invite as a text document, for writing by hand (or by a language model) and pasting into the trip
  * planner's source view:
  *
  *   ---
+ *   title: Cherry blossoms in Kyoto and Seoul
  *   to:
- *     - Kyoto@JPN
- *     - KOR by plane
+ *     - Kyoto@JPN by plane
+ *     - KOR by boat
+ *   start: Paris@FRA
+ *   return: Paris@FRA by plane
  *   from: Kim
  *   email:
  *   date: 2027-03-28
  *   end: 2027-04-08
  *   ---
  *
- *   The message, in Markdown.
+ *   The cover message, in Markdown.
  *
- * The fields are the link's (lib/invite.ts), one per line; the message is everything after them.
+ *   ## Kyoto@JPN
+ *
+ *   The note on Kyoto, in Markdown.
+ *
+ * The fields are the link's (lib/invite.ts), one per line. After them comes the message, then a note for any place
+ * on the route: a `## ` heading that is the place, written as in the fields, starts it. When a place is on the route
+ * twice (leaving from and coming back to Paris), its first heading is the first visit's.
  */
-export const DOC_FIELDS = ["to", "from", "email", "date", "end"] as const;
+export const DOC_FIELDS = ["title", "to", "start", "return", "from", "email", "date", "end"] as const;
 type DocField = (typeof DOC_FIELDS)[number];
 
 /** The document for an invite. Every field is written, empty or not, so it's there to fill in. `stops` may be empty. */
 export function inviteDoc(i: Invite): string {
   const field = (name: DocField, value = "") => `${name}:${value && ` ${value}`}`;
+  const route = writeRoute(i);
+  const notes = tripRoute(i).flatMap((p) => (p.note ? [`## ${writePlace(p.stop)}`, "", p.note, ""] : []));
   return [
     "---",
+    field("title", i.title),
     "to:",
-    ...writeStops(i).map((s) => `  - ${s}`),
+    ...route.to.map((s) => `  - ${s}`),
+    field("start", route.start),
+    field("return", route.return),
     field("from", i.from),
     field("email", i.email),
     field("date", i.date),
@@ -38,7 +53,36 @@ export function inviteDoc(i: Invite): string {
     "",
     i.message ?? "",
     "",
+    ...notes,
   ].join("\n");
+}
+
+/** A place as written in a field, without how you get there: `Kyoto@JPN by train` → `kyoto@jpn`, for comparing. */
+const placeKey = (written: string) => fold(written.replace(/\s+by\s+\S+$/i, "").replace(/\s*@\s*/, "@").trim());
+
+/**
+ * Split the text after the fields into the message and the notes, along the route as written (`places`). A `## `
+ * heading starts a note when it is a place on the route that has none yet; any other heading is part of the text.
+ */
+function splitNotes(body: string[], places: string[]): { message: string; notes: string[] } {
+  const keys = places.map(placeKey);
+  const sections: string[][] = [[]];
+  const owners: number[] = [-1];
+  let fenced = false;
+  for (const line of body) {
+    if (/^\s*(```|~~~)/.test(line)) fenced = !fenced;
+    const heading = fenced ? null : /^##\s+(.+?)\s*#*\s*$/.exec(line);
+    const k = heading ? keys.findIndex((key, j) => key === placeKey(heading[1]) && !owners.includes(j)) : -1;
+    if (k === -1) {
+      sections.at(-1)!.push(line);
+      continue;
+    }
+    sections.push([]);
+    owners.push(k);
+  }
+  const notes = places.map(() => "");
+  owners.forEach((k, j) => k >= 0 && (notes[k] = sections[j].join("\n").trim()));
+  return { message: sections[0].join("\n").trim(), notes };
 }
 
 /** A chat often hands the document over inside a code block: take it out. */
@@ -90,8 +134,10 @@ export async function parseInviteDoc(text: string, known: KnownCodes, loadCities
     if (key === "to") raw.to.push(...value.replace(/^\[|\]$/g, "").split(",").map(unquote).filter(Boolean));
     else if (value) raw[key as Exclude<DocField, "to">] = value;
   }
-  const message = lines.slice(close + 1).join("\n").trim();
+  const places = [...(raw.start ? [raw.start] : []), ...raw.to, ...(raw.return ? [raw.return] : [])];
+  const { message, notes } = splitNotes(lines.slice(close + 1), places);
   if (message) raw.msg = message;
+  if (notes.some(Boolean)) raw.notes = notes;
 
   const r = await resolveInvite(raw, known, loadCities);
   return !r.ok && r.error.field === "msg" ? fail("message", r.error.message) : r;
