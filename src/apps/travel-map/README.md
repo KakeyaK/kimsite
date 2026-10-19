@@ -9,7 +9,7 @@ friends on a trip (to a country, a state or a city). `/sandbox/travel-map` shows
 - `components/` — Preact UI. Entry points: `TravelMap` (your map, with the `Onboarding` card), `MapViewer` (anyone else's map, read-only, with overlap mode: Kim's and shared ones), `SharedMapPage` (a map shared as a link), `ShareMap` (the share button), `InvitePage` (a trip invite, told one place at a time over the map: `InviteView`, with the cover from `Postcard`), `Preview` (the sandbox thumbnail).
 - `lib/` — everything without UI: data schema, storage, stats, search, trip invites, shared map links (`sharedMap.ts`), the overlap comparison (`overlap.ts`), and `mapView.ts` (the MapLibre wrapper). Tests sit next to the code.
 - `data/travel.json` — Kim's own map, shown at `/sandbox/travel-map`; `data/kim.ts` loads and validates it.
-- `styles.css` — the map's colors (`--map-*`), light and dark.
+- `components/theme.module.css` — the map's colors (`--map-*`), light and dark, set on each entry point's root by `components/island.ts` (which also gives it an error boundary). Entry points export the wrapped component as default and the bare one by name, for use inside the app.
 - `scripts/build-geodata.mjs` — generates the geo data (see below).
 - `shortener/` — the invite link shortener at `go.kakeya.kim`, a Cloudflare Worker deployed on its own (see its [README](shortener/README.md)).
 

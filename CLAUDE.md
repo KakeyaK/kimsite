@@ -43,6 +43,12 @@ Self-contained projects that live inside the site each get a folder under `src/a
 - Apps visitors open on their own page are listed in the **sandbox** (`/sandbox`, in the header). Each one has an entry in `src/content/sandbox/<slug>/index.md` (frontmatter only: title, description, date, `preview`), its routes in `src/pages/sandbox/<slug>/`, and a `preview.astro` there: a bare page (`EmbedLayout`) that `SandboxCard` shows as a live, scaled-down iframe, CodePen-style. Keep previews non-interactive and light, they load on the listing page.
 - An app may import from the site (`@layouts`, `@lib/utils`, …). The site imports an app only from that app's route files or the page that embeds it. Apps never import from each other.
 - Import with the alias: `@apps/travel-map/lib/...`.
+- Both import rules are enforced by ESLint (`import/no-restricted-paths` in `.eslintrc.cjs`).
+- **Isolation.** Apps share the page with the site, so they keep to themselves:
+  - Each component a route mounts as an island is wrapped with its framework's helper in `src/lib/islands/` (today `preact.tsx`: `island(App, { name, class })`), which adds an error boundary so a crash shows a message instead of a blank space. A new framework gets its own helper there.
+  - Styles go in CSS modules (`*.module.css`), hung on the class passed to `island()`. A `<style>` in an `.astro` component is already scoped and fine too. No global selectors (`:root`, `body`, bare tags) except through `:global(html.dark)` for dark mode. Tailwind utilities are fine.
+  - Storage keys are prefixed with the app's name (`travel-map:...`); never `localStorage.clear()`.
+  - Each JSX framework integration in `astro.config.mjs` has an `include` list of the JSX files written in it (`src/apps/<app>/**/*.{jsx,tsx}`); a new app adds its glob there. An app on a framework other than Preact also needs a `/** @jsxImportSource ... */` pragma in its files, since `tsconfig.json` defaults JSX to Preact.
 - `src/components/` and `src/lib/` are for the site itself (header, cards, blog helpers), not app code.
 
 ## Search palette

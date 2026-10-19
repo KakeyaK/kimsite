@@ -6,7 +6,6 @@ import maplibregl, {
   type StyleSpecification,
 } from "maplibre-gl";
 import "maplibre-gl/dist/maplibre-gl.css";
-import "../styles.css";
 import type { FeatureCollection } from "geojson";
 import type { ISO3 } from "./data";
 import type { ColorKey } from "./stats";
@@ -18,13 +17,13 @@ import { OVERLAP_KEYS } from "./overlap";
 const COLOR_KEYS: ColorKey[] = ["visited", "lived", "want", "stop", ...OVERLAP_KEYS];
 const EMPTY: FeatureCollection = { type: "FeatureCollection", features: [] };
 
-function token(name: string): string {
-  return getComputedStyle(document.documentElement).getPropertyValue(`--map-${name}`).trim() || "#888888";
-}
+/** Reads a `--map-*` colour as the map sees it (the app root sets them, see components/theme.module.css). */
+type Tokens = (name: string) => string;
+const tokensOf = (el: Element): Tokens => (name) => getComputedStyle(el).getPropertyValue(`--map-${name}`).trim() || "#888888";
 const reducedMotion = () => window.matchMedia("(prefers-reduced-motion: reduce)").matches;
 
 /** Fill by the feature-state `color` key; features without one get `fallback`. */
-function fillColor(fallback: string): ExpressionSpecification {
+function fillColor(token: Tokens, fallback: string): ExpressionSpecification {
   return [
     "match",
     ["coalesce", ["feature-state", "color"], "none"],
@@ -55,8 +54,8 @@ function acrossFade(from: unknown, to: unknown): ExpressionSpecification {
  * them: the state shapes don't line up exactly with the country outline, and its colour would show
  * through at the edges.
  */
-function countryFill(): ExpressionSpecification {
-  return acrossFade(fillColor(token("land")), ["case", hasStates, token("land"), fillColor(token("land"))]);
+function countryFill(token: Tokens): ExpressionSpecification {
+  return acrossFade(fillColor(token, token("land")), ["case", hasStates, token("land"), fillColor(token, token("land"))]);
 }
 /** Country names fade in from here, once there's room for more than a handful. */
 const LABEL_FADE_START = 1.8;
@@ -93,7 +92,7 @@ const vehicleIcon = (mode: Mode) => `vehicle-${mode}`;
 const PLANE_EMOJI_BEARING = 45;
 
 /** What travels along a travel line while the camera follows it: the mode's emoji, with a soft land-coloured halo. */
-function vehicleImage(mode: Mode): ImageData {
+function vehicleImage(token: Tokens, mode: Mode): ImageData {
   const size = VEHICLE_SIZE * ICON_RATIO;
   const canvas = document.createElement("canvas");
   canvas.width = canvas.height = size;
@@ -124,6 +123,7 @@ export class MapView {
 
   /** `cooperative`: plain wheel and one-finger gestures scroll the page (for maps the page scrolls past). */
   constructor({ container, globe = false, interactive = true, cooperative = interactive }: { container: HTMLElement; globe?: boolean; interactive?: boolean; cooperative?: boolean }) {
+    const token = tokensOf(container);
     const style: StyleSpecification = {
       version: 8,
       // Self-hosted (see ../scripts/build-geodata.mjs): Latin-1 only, which covers every place name we draw.
@@ -143,13 +143,13 @@ export class MapView {
       },
       layers: [
         { id: "background", type: "background", paint: { "background-color": token("ocean") } },
-        { id: "country-fill", type: "fill", source: "countries", paint: { "fill-color": countryFill() } },
+        { id: "country-fill", type: "fill", source: "countries", paint: { "fill-color": countryFill(token) } },
         { id: "country-line", type: "line", source: "countries", paint: { "line-color": token("border"), "line-width": 0.5 } },
         // Once states are drawn they replace the country's colour: unmarked states are plain land,
         // so you can see which states you've actually been to.
         {
           id: "region-fill", type: "fill", source: "regions", minzoom: REGION_FADE_START,
-          paint: { "fill-color": fillColor(token("land")), "fill-opacity": acrossFade(0, 1) },
+          paint: { "fill-color": fillColor(token, token("land")), "fill-opacity": acrossFade(0, 1) },
         },
         {
           id: "region-line", type: "line", source: "regions", minzoom: REGION_FADE_START,
@@ -168,7 +168,7 @@ export class MapView {
         {
           id: "country-outline", type: "line", source: "countries", minzoom: REGION_FADE_START,
           filter: hasStates as ExpressionSpecification,
-          paint: { "line-color": fillColor(TRANSPARENT), "line-width": 2.5, "line-opacity": acrossFade(0, 1) },
+          paint: { "line-color": fillColor(token, TRANSPARENT), "line-width": 2.5, "line-opacity": acrossFade(0, 1) },
         },
         // The clicked country or state. States are only clickable once drawn, so their border shares their fade.
         {
@@ -269,7 +269,7 @@ export class MapView {
     // Vehicle icons are added lazily, the first time their layer asks for one.
     this.map.on("styleimagemissing", ({ id }) => {
       const mode = MODES.find((m) => vehicleIcon(m) === id);
-      if (mode && !this.map.hasImage(id)) this.map.addImage(id, vehicleImage(mode), { pixelRatio: ICON_RATIO });
+      if (mode && !this.map.hasImage(id)) this.map.addImage(id, vehicleImage(token, mode), { pixelRatio: ICON_RATIO });
     });
     this.ready = new Promise((resolve) => this.map.once("load", () => resolve()));
     this.themeObserver = new MutationObserver(() => this.applyTheme());
@@ -289,12 +289,13 @@ export class MapView {
       this.map.once("idle", () => { this.dark = !dark; this.applyTheme(); });
       return;
     }
+    const token = tokensOf(this.map.getContainer());
     this.map.setPaintProperty("background", "background-color", token("ocean"));
-    this.map.setPaintProperty("country-fill", "fill-color", countryFill());
+    this.map.setPaintProperty("country-fill", "fill-color", countryFill(token));
     this.map.setPaintProperty("country-line", "line-color", token("border"));
-    this.map.setPaintProperty("region-fill", "fill-color", fillColor(token("land")));
+    this.map.setPaintProperty("region-fill", "fill-color", fillColor(token, token("land")));
     this.map.setPaintProperty("region-line", "line-color", token("border"));
-    this.map.setPaintProperty("country-outline", "line-color", fillColor(TRANSPARENT));
+    this.map.setPaintProperty("country-outline", "line-color", fillColor(token, TRANSPARENT));
     this.map.setPaintProperty("country-trip-outline", "line-color", token("stop"));
     this.map.setPaintProperty("country-selected", "line-color", token("selected"));
     this.map.setPaintProperty("region-selected", "line-color", token("selected"));
@@ -307,7 +308,7 @@ export class MapView {
     this.map.setPaintProperty("endpoints", "circle-color", token("land"));
     this.map.setPaintProperty("endpoints", "circle-stroke-color", token("stop"));
     for (const mode of MODES) {
-      if (this.map.hasImage(vehicleIcon(mode))) this.map.updateImage(vehicleIcon(mode), vehicleImage(mode));
+      if (this.map.hasImage(vehicleIcon(mode))) this.map.updateImage(vehicleIcon(mode), vehicleImage(token, mode));
     }
   }
 
