@@ -33,7 +33,10 @@ export default defineConfig({
         !page.endsWith("/preview/") && !page.endsWith("/invite-guide/"),
     }),
     tailwind(),
-    preact(),
+    // One integration per UI framework, each limited to the JSX files written in it, so apps in
+    // different JSX frameworks (Preact, React, Solid…) can sit side by side. A new app adds its 
+    // folder to its framework's list (see CLAUDE.md, "Apps").
+    preact({ include: ["src/apps/travel-map/**/*.{jsx,tsx}", "src/lib/islands/preact.tsx"] }),
   ],
   markdown: {
     rehypePlugins: [rehypeExternalLinks],

@@ -5,8 +5,9 @@ import { KNOWN_CODES } from "@apps/travel-map/lib/meta";
 import { cn } from "@lib/utils";
 import { InviteView } from "./InviteView";
 import { btn, container, MY_MAP_URL } from "./ui";
+import { mapIsland } from "./island";
 
-export default function InvitePage() {
+export function InvitePage() {
   const [hash, setHash] = useState(() => window.location.hash);
   /** null while decoding: a city stop needs the city list, which is fetched. */
   const [result, setResult] = useState<DecodeResult | null>(null);
@@ -39,3 +40,5 @@ export default function InvitePage() {
     </div>
   );
 }
+
+export default mapIsland(InvitePage);

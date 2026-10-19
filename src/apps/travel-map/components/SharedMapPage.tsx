@@ -2,11 +2,12 @@ import { useEffect, useState } from "preact/hooks";
 import { KNOWN_CODES } from "@apps/travel-map/lib/meta";
 import { decodeSharedMap, parseSharedHash } from "@apps/travel-map/lib/sharedMap";
 import { cn } from "@lib/utils";
-import MapViewer from "./MapViewer";
+import { MapViewer } from "./MapViewer";
 import { btn, container, MY_MAP_URL } from "./ui";
+import { mapIsland } from "./island";
 
 /** A map someone shared as a link (`/shared#m=…`), shown read-only. */
-export default function SharedMapPage() {
+export function SharedMapPage() {
   const [hash, setHash] = useState(() => window.location.hash);
 
   useEffect(() => {
@@ -43,3 +44,5 @@ export default function SharedMapPage() {
     </div>
   );
 }
+
+export default mapIsland(SharedMapPage);

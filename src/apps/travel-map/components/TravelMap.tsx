@@ -22,11 +22,12 @@ import { Onboarding } from "./Onboarding";
 import { SavedInvites } from "./SavedInvites";
 import { ShareMap } from "./ShareMap";
 import { btn, container, mapBox, overlay } from "./ui";
+import { mapIsland } from "./island";
 
 /** The country a selection belongs to (a state's country, or the country itself). */
 const countryOf = (place: PlaceRef): ISO3 => (place.kind === "country" ? place.code : (regionByCode(place.code)?.country ?? place.code));
 
-export default function TravelMap() {
+export function TravelMap() {
   const store = useMemo(() => createStore(), []);
   const [data, setData] = useState<TravelData>(() => store.load());
   const [selected, setSelected] = useState<PlaceRef | null>(null);
@@ -229,3 +230,5 @@ export default function TravelMap() {
     </div>
   );
 }
+
+export default mapIsland(TravelMap);

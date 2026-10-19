@@ -1,5 +1,9 @@
-/* Travel map colors (read by lib/mapView.ts, which imports this file; keep hex, MapLibre parses it directly) */
-:root {
+/*
+ * Travel map colors, set on each island's root (see island.ts) so they never reach the rest of the
+ * page. Read by Swatch/InviteView through var() and by lib/mapView.ts from the map's container; keep
+ * hex, MapLibre parses it directly.
+ */
+.root {
   --map-ocean: #e7e5e4;
   --map-land: #fafaf9;
   --map-border: #a8a29e;
@@ -16,7 +20,7 @@
   --map-only-you: #2563eb;
 }
 
-html.dark {
+:global(html.dark) .root {
   --map-ocean: #1c1917;
   --map-land: #44403c;
   --map-border: #78716c;
@@ -31,4 +35,3 @@ html.dark {
   --map-only-them: #f472b6;
   --map-only-you: #60a5fa;
 }
-

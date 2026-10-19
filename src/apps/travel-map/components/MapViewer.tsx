@@ -13,6 +13,7 @@ import { legendCorner, MapLegend, STATUS_LEGEND, type LegendItem } from "./MapLe
 import { MyMapLink } from "./MyMapLink";
 import { TimelineSlider } from "./TimelineSlider";
 import { btn, container, mapBox, MY_MAP_URL, overlay, STATUS_LABEL } from "./ui";
+import { mapIsland } from "./island";
 
 interface Props {
   data: TravelData;
@@ -21,7 +22,7 @@ interface Props {
 }
 
 /** Someone else's map, read-only: Kim's (bundled with the site) or one shared as a link. */
-export default function MapViewer({ data, owner }: Props) {
+export function MapViewer({ data, owner }: Props) {
   const { ref, view, error } = useMapView();
   const [year, setYear] = useState<number | null>(null);
   const [selected, setSelected] = useState<PlaceRef | null>(null);
@@ -123,3 +124,5 @@ export default function MapViewer({ data, owner }: Props) {
     </div>
   );
 }
+
+export default mapIsland(MapViewer);

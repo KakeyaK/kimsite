@@ -2,9 +2,10 @@ import { useEffect } from "preact/hooks";
 import type { TravelData } from "@apps/travel-map/lib/data";
 import { regionColors, statusColors } from "@apps/travel-map/lib/stats";
 import { useMapView } from "./useMapView";
+import { mapIsland } from "./island";
 
 /** Kim's map as a still thumbnail for the sandbox card: no controls, fills the whole frame. */
-export default function Preview({ data }: { data: TravelData }) {
+export function Preview({ data }: { data: TravelData }) {
   const { ref, view, error } = useMapView({ interactive: false });
 
   useEffect(() => {
@@ -14,3 +15,5 @@ export default function Preview({ data }: { data: TravelData }) {
 
   return error ? <p class="p-4 text-sm">{error}</p> : <div ref={ref} class="h-screen w-full" />;
 }
+
+export default mapIsland(Preview);
